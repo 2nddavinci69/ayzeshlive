@@ -1,0 +1,20 @@
+{
+  "id": "./",
+  "name": "AYZESHLIVE — Scan & Play AR",
+  "short_name": "AYZESHLIVE",
+  "description": "Scan images or QR codes with AYZESHLIVE to play linked videos in Augmented Reality.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0f19",
+  "theme_color": "#ff6b00",
+  "icons": [
+    {
+      "src": "./assets/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
