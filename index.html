@@ -143,6 +143,7 @@
       font-weight: 700;
       cursor: pointer;
       font-size: 12px;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -176,7 +177,7 @@
     <div class="ar-box" id="arContainer">
       <a-scene
         id="arScene"
-        mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+        mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
         color-space="sRGB"
         renderer="colorManagement: true, physicallyCorrectLights"
         vr-mode-ui="enabled: false"
@@ -185,7 +186,7 @@
         <a-assets id="arAssets">
           <video
             id="arVideo0"
-            src="./assets/demo.mp4"
+            src="./assets/jingpeng1.mp4"
             preload="auto"
             loop="true"
             crossorigin="anonymous"
@@ -199,7 +200,7 @@
 
         <a-entity id="targetsContainer">
           <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
-            <a-video src="#arVideo0" width="1" height="0.5625" position="0 0 0"></a-video>
+            <a-video id="arPlane0" src="#arVideo0" width="1" height="0.5625" position="0 0 0" visible="false"></a-video>
           </a-entity>
         </a-entity>
       </a-scene>
@@ -214,27 +215,42 @@
 
     <div class="status-bar">
       <span id="statusText">Point camera at target image to play video.</span>
-      <button class="sound-btn" onclick="enableSound()">🔊 Unmute / Play</button>
+      <button id="soundBtn" class="sound-btn" onclick="toggleSoundOrPlay()">🔊 Unmute / Play</button>
     </div>
   </div>
 
   <script>
     const statusText = document.getElementById('statusText');
+    const soundBtn = document.getElementById('soundBtn');
     let activeVideoEl = document.getElementById('arVideo0');
+    let isTargetDetected = false;
 
-    function attachTargetEvents(targetEl, vidEl, label) {
+    function attachTargetEvents(targetEl, planeEl, vidEl, label) {
+      planeEl.setAttribute('visible', 'false');
+      vidEl.pause();
+
       targetEl.addEventListener('targetFound', () => {
+        isTargetDetected = true;
         activeVideoEl = vidEl;
+        planeEl.setAttribute('visible', 'true');
         statusText.innerText = `Detected: ${label} — Playing video...`;
         vidEl.play().catch(() => {});
       });
+
       targetEl.addEventListener('targetLost', () => {
-        statusText.innerText = `Target lost (${label}). Scan again.`;
+        isTargetDetected = false;
+        planeEl.setAttribute('visible', 'false');
         vidEl.pause();
+        statusText.innerText = `Target lost (${label}). Point camera at image again.`;
       });
     }
 
-    attachTargetEvents(document.getElementById('arTarget0'), activeVideoEl, 'Target #0');
+    attachTargetEvents(
+      document.getElementById('arTarget0'),
+      document.getElementById('arPlane0'),
+      activeVideoEl,
+      'JINPENG-01'
+    );
 
     async function initTargetsConfig() {
       const params = new URLSearchParams(window.location.search);
@@ -266,6 +282,8 @@
           cfg.targets.forEach((t, i) => {
             const idx = typeof t.targetIndex === 'number' ? t.targetIndex : i;
             const vidId = `arVideo${idx}`;
+            const planeId = `arPlane${idx}`;
+
             const v = document.createElement('video');
             v.id = vidId;
             v.src = (idx === queryTarget && queryVideo) ? decodeURIComponent(queryVideo) : t.videoUrl;
@@ -282,16 +300,18 @@
             ent.setAttribute('mindar-image-target', `targetIndex: ${idx}`);
 
             const plane = document.createElement('a-video');
+            plane.id = planeId;
             plane.setAttribute('src', `#${vidId}`);
             plane.setAttribute('width', '1');
             plane.setAttribute('height', '0.5625');
             plane.setAttribute('position', '0 0 0');
+            plane.setAttribute('visible', 'false');
 
             ent.appendChild(plane);
             containerEl.appendChild(ent);
 
             if (idx === 0 || idx === queryTarget) activeVideoEl = v;
-            attachTargetEvents(ent, v, t.name || `Target #${idx}`);
+            attachTargetEvents(ent, plane, v, t.name || `Target #${idx}`);
           });
         }
       } catch (_) {}
@@ -299,12 +319,26 @@
 
     initTargetsConfig();
 
-    function enableSound() {
+    function toggleSoundOrPlay() {
       if (!activeVideoEl) return;
-      activeVideoEl.muted = false;
-      activeVideoEl.play().catch(() => {
-        alert('Tap target image or allow autoplay.');
-      });
+
+      if (activeVideoEl.muted) {
+        activeVideoEl.muted = false;
+        activeVideoEl.play().catch(() => {});
+        soundBtn.innerText = '⏸ Pause / Mute';
+        statusText.innerText = 'Sound enabled & playing.';
+        return;
+      }
+
+      if (activeVideoEl.paused) {
+        activeVideoEl.play().catch(() => {});
+        soundBtn.innerText = '⏸ Pause';
+        statusText.innerText = 'Video playing.';
+      } else {
+        activeVideoEl.pause();
+        soundBtn.innerText = '▶ Play';
+        statusText.innerText = 'Video paused.';
+      }
     }
 
     function loadLocalVideo(e) {
@@ -325,6 +359,7 @@
       const modeQrBtn = document.getElementById('modeQrBtn');
 
       if (mode === 'qr') {
+        activeVideoEl.pause();
         arContainer.style.display = 'none';
         qrPanel.classList.add('show');
         modeQrBtn.classList.add('active');
@@ -336,6 +371,9 @@
         arContainer.style.display = 'block';
         modeArBtn.classList.add('active');
         modeQrBtn.classList.remove('active');
+        if (isTargetDetected) {
+          activeVideoEl.play().catch(() => {});
+        }
       }
     }
 
