@@ -6,6 +6,7 @@
   <title>AYZESHLIVE Builder — Multi-Target & QR Studio</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -21,6 +22,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 10px;
       z-index: 100;
     }
     .logo-text {
@@ -28,6 +30,11 @@
       font-weight: 900;
       color: #ff6b00;
       letter-spacing: 1.5px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
     .back-link {
       color: #000;
@@ -37,6 +44,18 @@
       text-decoration: none;
       font-weight: 800;
       font-size: 13px;
+      border: none;
+      cursor: pointer;
+    }
+    .lock-btn {
+      background: #1f2937;
+      color: #ffffff;
+      border: 1px solid #ff6b00;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
     }
     .container {
       max-width: 860px;
@@ -68,7 +87,6 @@
       border: 1px solid #374151;
       background: #0b0f19;
       color: #fff;
-      box-sizing: border-box;
     }
     .row-2 {
       display: grid;
@@ -171,13 +189,81 @@
       margin-left: auto;
       margin-right: auto;
     }
+    /* PIN Lock Screen */
+    #pinGate {
+      position: fixed;
+      inset: 0;
+      background: #0b0f19;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pin-card {
+      width: 100%;
+      max-width: 360px;
+      background: #141b2d;
+      border: 2px solid #ff6b00;
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 12px;
+      margin: 14px 0 10px;
+      border-radius: 8px;
+      border: 1px solid #ff6b00;
+      background: #0b0f19;
+      color: #ffffff;
+      font-size: 20px;
+      letter-spacing: 6px;
+      text-align: center;
+      font-weight: 800;
+    }
+    .pin-error {
+      color: #f87171;
+      font-size: 12px;
+      margin: 10px 0 0;
+      min-height: 16px;
+    }
+    .pin-back {
+      display: inline-block;
+      margin-top: 12px;
+      color: #9ca3af;
+      font-size: 12px;
+      text-decoration: none;
+    }
   </style>
 </head>
 <body>
 
+  <div id="pinGate">
+    <div class="pin-card">
+      <div class="logo-text">AYZESHLIVE ADMIN</div>
+      <div style="font-size:12px; color:#9ca3af; margin-top:4px;">Enter PIN to access Builder</div>
+      <input
+        type="password"
+        id="pinInput"
+        class="pin-input"
+        inputmode="numeric"
+        maxlength="8"
+        placeholder="••••"
+        onkeydown="if(event.key==='Enter') checkBuilderPin()"
+      />
+      <button style="width:100%; justify-content:center;" onclick="checkBuilderPin()">🔓 Unlock Builder</button>
+      <p id="pinError" class="pin-error"></p>
+      <a href="./index.html" class="pin-back">← Back to Scanner</a>
+    </div>
+  </div>
+
   <header class="header">
     <div class="logo-text">AYZESHLIVE BUILDER</div>
-    <a href="./index.html" class="back-link">📷 Open Scanner</a>
+    <div class="header-actions">
+      <button class="lock-btn" onclick="lockBuilder()">🔒 Lock</button>
+      <a href="./index.html" class="back-link">📷 Open Scanner</a>
+    </div>
   </header>
 
   <div class="container">
@@ -242,6 +328,34 @@
   </div>
 
   <script>
+    const BUILDER_PIN = "1969"; // Apna pasandeeda PIN yahan set karein
+
+    function applyLockState() {
+      const unlocked = sessionStorage.getItem("ayzesh_builder_unlocked") === "1";
+      document.getElementById("pinGate").style.display = unlocked ? "none" : "flex";
+    }
+
+    function checkBuilderPin() {
+      const inputEl = document.getElementById("pinInput");
+      const errEl = document.getElementById("pinError");
+      if (inputEl.value.trim() === BUILDER_PIN) {
+        sessionStorage.setItem("ayzesh_builder_unlocked", "1");
+        errEl.innerText = "";
+        inputEl.value = "";
+        applyLockState();
+      } else {
+        errEl.innerText = "Wrong PIN! Access denied.";
+        inputEl.value = "";
+      }
+    }
+
+    function lockBuilder() {
+      sessionStorage.removeItem("ayzesh_builder_unlocked");
+      applyLockState();
+    }
+
+    applyLockState();
+
     let mindFileName = 'targets.mind';
     let mindFilePath = './assets/targets.mind';
     let videoFileName = 'demo.mp4';
