@@ -91,6 +91,7 @@
     }
     .ar-box {
       position: relative;
+      isolation: isolate;
       width: 100%;
       max-width: 720px;
       height: 76vh;
@@ -99,25 +100,22 @@
       border: 1px solid #263147;
       overflow: hidden;
     }
-    #scanCamVideo {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 2;
-      display: none;
-      background: #000000;
-    }
-    #scanCamVideo.show {
-      display: block;
+    /* MindAR ke apnay camera video ko box ke andar upar laana */
+    .ar-box > video {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
     }
     .ar-box a-scene {
       position: absolute !important;
       inset: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      z-index: 3 !important;
+      z-index: 2 !important;
       pointer-events: none;
     }
     .ar-box canvas.a-canvas {
@@ -219,8 +217,6 @@
     </div>
 
     <div class="ar-box" id="arContainer">
-      <video id="scanCamVideo" playsinline webkit-playsinline autoplay muted></video>
-
       <a-scene
         id="arScene"
         mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: false; uiScanning: no; uiLoading: no;"
@@ -237,7 +233,7 @@
       </a-scene>
 
       <div id="videoStage" class="video-stage">
-        <button class="cam-back-btn" onclick="startScanCamera()">✕ Camera</button>
+        <button class="cam-back-btn" onclick="backToCamera()">✕ Camera</button>
         <video id="stageVideo" playsinline webkit-playsinline loop muted></video>
       </div>
     </div>
@@ -255,15 +251,13 @@
     const statusText = document.getElementById('statusText');
     const muteBtn = document.getElementById('muteBtn');
     const playBtn = document.getElementById('playBtn');
-    const scanCamVideo = document.getElementById('scanCamVideo');
     const arScene = document.getElementById('arScene');
     const videoStage = document.getElementById('videoStage');
     const stageVideo = document.getElementById('stageVideo');
 
-    let camStream = null;
-    let arStarted = false;
+    let arRunning = false;
+    let isStarting = false;
     let scannedVideoUrl = '';
-    let isStartingCamera = false;
 
     function syncButtons() {
       muteBtn.innerText = stageVideo.muted ? '🔇 Unmute' : '🔊 Mute';
@@ -287,59 +281,26 @@
       syncButtons();
     }
 
-    async function acquireCameraStream() {
-      try {
-        return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      } catch (_) {
-        return await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false
-        });
-      }
-    }
-
-    async function startScanCamera() {
+    function backToCamera() {
       stageVideo.pause();
       videoStage.classList.remove('show');
       syncButtons();
-
-      if (isStartingCamera) return;
-      isStartingCamera = true;
-      statusText.innerText = 'Starting camera...';
-
-      try {
-        if (!camStream || !camStream.active) {
-          camStream = await acquireCameraStream();
-        }
-        scanCamVideo.srcObject = camStream;
-        scanCamVideo.classList.add('show');
-        await scanCamVideo.play().catch(() => {});
-        statusText.innerText = 'Camera ON — point at target image to scan.';
-
-        if (!arStarted && arScene.systems && arScene.systems['mindar-image-system']) {
-          arStarted = true;
-          setTimeout(() => {
-            try {
-              arScene.systems['mindar-image-system'].start();
-            } catch (_) {}
-          }, 400);
-        }
-      } catch (err) {
-        statusText.innerText = 'Camera error: ' + (err.message || 'Allow camera permission in browser.');
-      } finally {
-        isStartingCamera = false;
-      }
+      statusText.innerText = arRunning
+        ? 'Camera ON — point at target image to scan.'
+        : 'Click "Scan Camera" to scan target image.';
     }
 
-    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
-      targetEl.addEventListener('targetFound', () => {
-        if (videoUrlForTarget) {
-          triggerMatchedVideo(videoUrlForTarget, label);
-        }
-      });
-    }
+    arScene.addEventListener('arReady', () => {
+      arRunning = true;
+      isStarting = false;
+      statusText.innerText = 'Camera ON — point at target image to scan.';
+    });
 
-    attachTargetEvents(document.getElementById('arTarget0'), './assets/jingpeng1.mp4', 'JINPENG-01');
+    arScene.addEventListener('arError', () => {
+      arRunning = false;
+      isStarting = false;
+      statusText.innerText = 'Camera error: Close other camera tabs/apps, check camera permission, and retry.';
+    });
 
     async function initTargetsConfig() {
       try {
@@ -371,9 +332,50 @@
       } catch (_) {}
     }
 
-    initTargetsConfig();
+    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
+      targetEl.addEventListener('targetFound', () => {
+        if (videoUrlForTarget) {
+          triggerMatchedVideo(videoUrlForTarget, label);
+        }
+      });
+    }
 
-    // Play button sirf tab kaam karega jab koi target scan ho chuka ho
+    attachTargetEvents(document.getElementById('arTarget0'), './assets/jingpeng1.mp4', 'JINPENG-01');
+    const targetsReady = initTargetsConfig();
+
+    async function startScanCamera() {
+      stageVideo.pause();
+      videoStage.classList.remove('show');
+      syncButtons();
+
+      if (arRunning) {
+        statusText.innerText = 'Camera ON — point at target image to scan.';
+        return;
+      }
+      if (isStarting) return;
+
+      isStarting = true;
+      statusText.innerText = 'Starting camera & AR scanner...';
+
+      try {
+        await targetsReady;
+
+        if (!arScene.hasLoaded) {
+          await new Promise(resolve => arScene.addEventListener('loaded', resolve, { once: true }));
+        }
+
+        const arSystem = arScene.systems && arScene.systems['mindar-image-system'];
+        if (!arSystem) {
+          throw new Error('AR system not ready. Refresh page.');
+        }
+
+        await arSystem.start();
+      } catch (err) {
+        isStarting = false;
+        statusText.innerText = 'Camera error: ' + (err && err.message ? err.message : 'Could not start camera.');
+      }
+    }
+
     function togglePlay() {
       if (!scannedVideoUrl) {
         statusText.innerText = 'Scan a target image first to play its video.';
@@ -394,6 +396,18 @@
       stageVideo.muted = !stageVideo.muted;
       syncButtons();
     }
+
+    // Tab close/refresh par camera hardware release karna
+    function releaseCamera() {
+      document.querySelectorAll('video').forEach(v => {
+        if (v.srcObject && typeof v.srcObject.getTracks === 'function') {
+          v.srcObject.getTracks().forEach(track => track.stop());
+          v.srcObject = null;
+        }
+      });
+    }
+    window.addEventListener('pagehide', releaseCamera);
+    window.addEventListener('beforeunload', releaseCamera);
   </script>
 </body>
 </html>
