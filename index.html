@@ -99,29 +99,30 @@
       border: 1px solid #263147;
       overflow: hidden;
     }
-    .ar-box a-scene {
-      position: relative !important;
-      width: 100% !important;
-      height: 100% !important;
-      display: block !important;
-      z-index: 2 !important;
+    #scanCamVideo {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 2;
+      display: none;
+      background: #000000;
     }
-    .ar-box > video {
+    #scanCamVideo.show {
+      display: block;
+    }
+    .ar-box a-scene {
       position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
+      inset: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      object-fit: cover !important;
-      z-index: 1 !important;
+      z-index: 3 !important;
+      pointer-events: none;
     }
     .ar-box canvas.a-canvas {
-      position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      z-index: 2 !important;
       background: transparent !important;
     }
     .video-stage {
@@ -214,48 +215,38 @@
 
   <div class="main-wrap">
     <div class="controls">
-      <button id="scanCameraBtn" class="ctrl-btn" onclick="openCameraView()">📷 Scan Camera</button>
+      <button id="scanCameraBtn" class="ctrl-btn" onclick="startScanCamera()">📷 Scan Camera</button>
     </div>
 
     <div class="ar-box" id="arContainer">
+      <video id="scanCamVideo" playsinline webkit-playsinline autoplay muted></video>
+
       <a-scene
         id="arScene"
-        mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+        mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: false; uiScanning: no; uiLoading: no;"
         color-space="sRGB"
         renderer="colorManagement: true, physicallyCorrectLights, antialias: true, alpha: true"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
       >
-        <a-assets id="arAssets">
-          <video
-            id="arVideo0"
-            src="./assets/jingpeng1.mp4"
-            preload="none"
-            muted
-            playsinline
-          ></video>
-        </a-assets>
-
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity id="targetsContainer">
-          <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
-            <a-plane color="#ff6b00" opacity="0.18" width="1" height="0.6" position="0 0 0"></a-plane>
-          </a-entity>
+          <a-entity id="arTarget0" mindar-image-target="targetIndex: 0"></a-entity>
         </a-entity>
       </a-scene>
 
       <div id="videoStage" class="video-stage">
-        <button class="cam-back-btn" onclick="openCameraView()">✕ Camera</button>
-        <video id="stageVideo" src="./assets/jingpeng1.mp4" playsinline webkit-playsinline loop muted></video>
+        <button class="cam-back-btn" onclick="startScanCamera()">✕ Camera</button>
+        <video id="stageVideo" playsinline webkit-playsinline loop muted></video>
       </div>
     </div>
 
     <div class="status-bar">
-      <span id="statusText">Point camera at target image to play video.</span>
+      <span id="statusText">Click "Scan Camera" to scan target image.</span>
       <div class="btn-group-right">
         <button id="muteBtn" class="action-btn ghost" onclick="toggleMute()">🔇 Unmute</button>
-        <button id="playBtn" class="action-btn" onclick="togglePlay()">▶ Play</button>
+        <button id="playBtn" class="action-btn" onclick="togglePlay()">⏸ Pause</button>
       </div>
     </div>
   </div>
@@ -264,92 +255,115 @@
     const statusText = document.getElementById('statusText');
     const muteBtn = document.getElementById('muteBtn');
     const playBtn = document.getElementById('playBtn');
-    const arContainer = document.getElementById('arContainer');
+    const scanCamVideo = document.getElementById('scanCamVideo');
     const arScene = document.getElementById('arScene');
     const videoStage = document.getElementById('videoStage');
     const stageVideo = document.getElementById('stageVideo');
 
-    let currentVideoUrl = './assets/jingpeng1.mp4';
-
-    function silenceBackgroundArVideos() {
-      document.querySelectorAll('#arAssets video').forEach((v) => {
-        v.muted = true;
-        v.pause();
-      });
-    }
+    let camStream = null;
+    let arStarted = false;
+    let scannedVideoUrl = '';
+    let scanFrameTimer = null;
 
     function syncButtons() {
       muteBtn.innerText = stageVideo.muted ? '🔇 Unmute' : '🔊 Mute';
       playBtn.innerText = stageVideo.paused ? '▶ Play' : '⏸ Pause';
     }
 
-    function syncMindArCameraVideo() {
-      document.querySelectorAll('video').forEach((vid) => {
-        if (vid.id !== 'stageVideo' && !vid.closest('#arAssets')) {
-          if (vid.parentElement !== arContainer) {
-            arContainer.insertBefore(vid, videoStage);
-          }
-          vid.style.position = 'absolute';
-          vid.style.top = '0';
-          vid.style.left = '0';
-          vid.style.width = '100%';
-          vid.style.height = '100%';
-          vid.style.objectFit = 'cover';
-          vid.style.zIndex = '1';
-          vid.style.display = 'block';
-        }
-      });
-    }
-
-    arScene.addEventListener('arReady', () => {
-      syncMindArCameraVideo();
-      statusText.innerText = 'Scan Camera ready — point at target image.';
-    });
-
-    arScene.addEventListener('arError', () => {
-      statusText.innerText = 'Camera permission required — allow camera in browser.';
-    });
-
-    setInterval(syncMindArCameraVideo, 1000);
-
-    stageVideo.addEventListener('loadedmetadata', () => {
-      statusText.innerText = `Ready (${stageVideo.videoWidth}x${stageVideo.videoHeight}).`;
-    });
-
     stageVideo.addEventListener('play', syncButtons);
     stageVideo.addEventListener('pause', syncButtons);
     stageVideo.addEventListener('volumechange', syncButtons);
 
-    function showFullVideo(url) {
-      silenceBackgroundArVideos();
-      if (url && stageVideo.getAttribute('src') !== url) {
-        stageVideo.setAttribute('src', url);
+    function triggerMatchedVideo(videoUrl, label) {
+      if (!videoUrl) return;
+      scannedVideoUrl = videoUrl;
+      if (stageVideo.getAttribute('src') !== videoUrl) {
+        stageVideo.setAttribute('src', videoUrl);
         stageVideo.load();
       }
       videoStage.classList.add('show');
       stageVideo.play().catch(() => {});
+      statusText.innerText = `Scanned ${label} — playing video.`;
       syncButtons();
     }
 
-    function openCameraView() {
+    async function startScanCamera() {
       stageVideo.pause();
-      silenceBackgroundArVideos();
       videoStage.classList.remove('show');
-      syncMindArCameraVideo();
-      statusText.innerText = 'Scan Camera active — point at target image.';
       syncButtons();
+
+      try {
+        if (!camStream) {
+          camStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false
+          });
+        }
+        scanCamVideo.srcObject = camStream;
+        scanCamVideo.classList.add('show');
+        await scanCamVideo.play().catch(() => {});
+        statusText.innerText = 'Camera ON — point at target image to scan.';
+
+        if (!arStarted && arScene.systems && arScene.systems['mindar-image-system']) {
+          arStarted = true;
+          arScene.systems['mindar-image-system'].start();
+        }
+      } catch (err) {
+        statusText.innerText = 'Camera error: ' + (err.message || 'Allow camera permission in browser.');
+      }
     }
 
+    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
+      targetEl.addEventListener('targetFound', () => {
+        if (videoUrlForTarget) {
+          triggerMatchedVideo(videoUrlForTarget, label);
+        }
+      });
+    }
+
+    attachTargetEvents(document.getElementById('arTarget0'), './assets/jingpeng1.mp4', 'JINPENG-01');
+
+    async function initTargetsConfig() {
+      try {
+        const res = await fetch('./targets.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+
+        if (cfg.mindFile) {
+          arScene.setAttribute(
+            'mindar-image',
+            `imageTargetSrc: ${cfg.mindFile}; autoStart: false; uiScanning: no; uiLoading: no;`
+          );
+        }
+
+        if (Array.isArray(cfg.targets) && cfg.targets.length) {
+          const containerEl = document.getElementById('targetsContainer');
+          containerEl.innerHTML = '';
+
+          cfg.targets.forEach((t, i) => {
+            const idx = typeof t.targetIndex === 'number' ? t.targetIndex : i;
+            const ent = document.createElement('a-entity');
+            ent.id = `arTarget${idx}`;
+            ent.setAttribute('mindar-image-target', `targetIndex: ${idx}`);
+            containerEl.appendChild(ent);
+
+            attachTargetEvents(ent, t.videoUrl, t.name || `Target #${idx}`);
+          });
+        }
+      } catch (_) {}
+    }
+
+    initTargetsConfig();
+
+    // Play button sirf tab kaam karega jab koi target scan ho chuka ho
     function togglePlay() {
-      silenceBackgroundArVideos();
-      if (!videoStage.classList.contains('show')) {
-        showFullVideo(currentVideoUrl);
-        stageVideo.muted = false;
-        stageVideo.play().catch(() => {});
-        syncButtons();
+      if (!scannedVideoUrl) {
+        statusText.innerText = 'Scan a target image first to play its video.';
         return;
       }
-
+      if (!videoStage.classList.contains('show')) {
+        videoStage.classList.add('show');
+      }
       if (stageVideo.paused) {
         stageVideo.play().catch(() => {});
       } else {
@@ -359,97 +373,9 @@
     }
 
     function toggleMute() {
-      silenceBackgroundArVideos();
       stageVideo.muted = !stageVideo.muted;
-      if (!stageVideo.muted && videoStage.classList.contains('show') && stageVideo.paused) {
-        stageVideo.play().catch(() => {});
-      }
       syncButtons();
     }
-
-    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
-      targetEl.addEventListener('targetFound', () => {
-        currentVideoUrl = videoUrlForTarget || currentVideoUrl;
-        statusText.innerText = `Scanned: ${label} — Playing video...`;
-        showFullVideo(currentVideoUrl);
-      });
-
-      targetEl.addEventListener('targetLost', () => {
-        statusText.innerText = `Target lost (${label}).`;
-      });
-    }
-
-    attachTargetEvents(document.getElementById('arTarget0'), currentVideoUrl, 'JINPENG-01');
-
-    async function initTargetsConfig() {
-      const params = new URLSearchParams(window.location.search);
-      const queryVideo = params.get('video');
-      const queryTarget = parseInt(params.get('target') || '0', 10);
-
-      if (queryVideo) {
-        currentVideoUrl = decodeURIComponent(queryVideo);
-        stageVideo.src = currentVideoUrl;
-      }
-
-      try {
-        const res = await fetch('./targets.json', { cache: 'no-store' });
-        if (!res.ok) return;
-        const cfg = await res.json();
-
-        if (cfg.mindFile) {
-          arScene.setAttribute(
-            'mindar-image',
-            `imageTargetSrc: ${cfg.mindFile}; autoStart: true; uiScanning: yes; uiLoading: yes;`
-          );
-        }
-
-        if (Array.isArray(cfg.targets) && cfg.targets.length) {
-          const assetsEl = document.getElementById('arAssets');
-          const containerEl = document.getElementById('targetsContainer');
-          assetsEl.innerHTML = '';
-          containerEl.innerHTML = '';
-
-          cfg.targets.forEach((t, i) => {
-            const idx = typeof t.targetIndex === 'number' ? t.targetIndex : i;
-            const vidId = `arVideo${idx}`;
-            const resolvedSrc = (idx === queryTarget && queryVideo)
-              ? decodeURIComponent(queryVideo)
-              : (t.videoUrl || currentVideoUrl);
-
-            const v = document.createElement('video');
-            v.id = vidId;
-            v.src = resolvedSrc;
-            v.preload = 'none';
-            v.muted = true;
-            v.playsinline = true;
-            assetsEl.appendChild(v);
-
-            const ent = document.createElement('a-entity');
-            ent.id = `arTarget${idx}`;
-            ent.setAttribute('mindar-image-target', `targetIndex: ${idx}`);
-
-            const marker = document.createElement('a-plane');
-            marker.setAttribute('color', '#ff6b00');
-            marker.setAttribute('opacity', '0.18');
-            marker.setAttribute('width', '1');
-            marker.setAttribute('height', '0.6');
-            marker.setAttribute('position', '0 0 0');
-
-            ent.appendChild(marker);
-            containerEl.appendChild(ent);
-
-            if (idx === 0 || idx === queryTarget) {
-              currentVideoUrl = resolvedSrc;
-              stageVideo.src = currentVideoUrl;
-            }
-
-            attachTargetEvents(ent, resolvedSrc, t.name || `Target #${idx}`);
-          });
-        }
-      } catch (_) {}
-    }
-
-    initTargetsConfig();
   </script>
 </body>
 </html>
