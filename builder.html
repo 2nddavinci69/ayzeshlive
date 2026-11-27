@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AYZESHLIVE Builder — Multi-Target & QR Studio</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-target.prod.js"></script>
   <style>
     body {
       margin: 0;
@@ -89,10 +88,21 @@
       padding: 12px;
       text-align: center;
     }
-    .preview-box img, .preview-box video {
+    .preview-box video {
       max-width: 100%;
       max-height: 210px;
       border-radius: 8px;
+    }
+    .mind-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #111827;
+      border: 1px solid #ff6b00;
+      color: #ff6b00;
+      font-size: 13px;
+      font-weight: 700;
     }
     .btn-row {
       display: flex;
@@ -172,7 +182,7 @@
 
   <div class="container">
     <div class="card">
-      <h2>1. Image + MP4 Target Entry Jorain</h2>
+      <h2>1. .mind Target + MP4 Video Entry Jorain</h2>
 
       <div class="row-2">
         <div>
@@ -185,8 +195,8 @@
         </div>
       </div>
 
-      <label>Select Target Image (JPG / PNG)</label>
-      <input type="file" id="imageInput" accept="image/*" onchange="handleImageChange(event)" />
+      <label>Upload Target File (.mind)</label>
+      <input type="file" id="mindInput" accept=".mind" onchange="handleMindChange(event)" />
 
       <label>Select Local Video File (MP4 — for instant preview & local test)</label>
       <input type="file" id="videoInput" accept="video/mp4,video/*" onchange="handleVideoChange(event)" />
@@ -196,9 +206,9 @@
 
       <div class="preview-grid">
         <div class="preview-box">
-          <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">Target Image Preview</div>
-          <img id="imgPreview" alt="Image preview" style="display:none;" />
-          <p id="imgPlaceholder" style="color:#6b7280; font-size:13px;">No image selected</p>
+          <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">Target .mind File Status</div>
+          <p id="mindPlaceholder" style="color:#6b7280; font-size:13px;">No .mind file selected</p>
+          <div id="mindInfo" class="mind-badge" style="display:none;"></div>
         </div>
         <div class="preview-box">
           <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">MP4 Video Preview</div>
@@ -209,18 +219,17 @@
 
       <div class="btn-row">
         <button onclick="addTargetToList()">➕ Add Target to List</button>
-        <button onclick="compileMindFile()">⚙️ Compile & Download targets.mind</button>
         <button class="secondary" onclick="downloadTargetsJson()">💾 Download targets.json</button>
         <button class="secondary" onclick="generateQR()">🔳 Generate Direct QR Code</button>
         <a class="btn-link secondary" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile/" target="_blank" rel="noopener">🛠️ Official MindAR Compiler</a>
       </div>
 
-      <div class="log-box" id="logBox">Ready. Add targets or compile targets.mind.</div>
+      <div class="log-box" id="logBox">Ready. Upload a .mind target file and an MP4 video to begin.</div>
     </div>
 
     <div class="card">
       <h2>2. Saved Targets List (For targets.json)</h2>
-      <p style="font-size:13px; color:#9ca3af; margin-top:0;">Upload downloaded <code>targets.json</code> to repository root so <code>index.html</code> loads every target's video automatically.</p>
+      <p style="font-size:13px; color:#9ca3af; margin-top:0;">Upload downloaded <code>targets.json</code> to repository root and your <code>.mind</code> file to <code>./assets/</code>.</p>
       <div id="targetList" class="target-list"></div>
     </div>
 
@@ -233,12 +242,38 @@
   </div>
 
   <script>
-    let loadedImageEl = null;
+    let mindFileName = 'targets.mind';
+    let mindFilePath = './assets/targets.mind';
     let videoFileName = 'demo.mp4';
     let targets = JSON.parse(localStorage.getItem('ayzeshlive_targets_v1') || '[]');
 
     const logBox = document.getElementById('logBox');
     function log(msg) { logBox.innerText = msg; }
+
+    function handleMindChange(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      mindFileName = file.name;
+      mindFilePath = `./assets/${file.name}`;
+      const sizeKb = (file.size / 1024).toFixed(1);
+      document.getElementById('mindPlaceholder').style.display = 'none';
+      const badge = document.getElementById('mindInfo');
+      badge.style.display = 'inline-block';
+      badge.innerText = `${file.name} (${sizeKb} KB)`;
+      log(`Loaded target file: ${file.name}. Upload it to ${mindFilePath} on GitHub.`);
+    }
+
+    function handleVideoChange(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      videoFileName = file.name;
+      const url = URL.createObjectURL(file);
+      const vid = document.getElementById('vidPreview');
+      vid.src = url;
+      vid.style.display = 'inline-block';
+      document.getElementById('vidPlaceholder').style.display = 'none';
+      log(`Video loaded: ${file.name}`);
+    }
 
     function saveAndRenderTargets() {
       localStorage.setItem('ayzeshlive_targets_v1', JSON.stringify(targets));
@@ -271,7 +306,7 @@
       const videoUrl = document.getElementById('hostedVideoUrl').value.trim() || `./assets/${videoFileName}`;
 
       const existingIdx = targets.findIndex(t => t.targetIndex === targetIndex);
-      const entry = { targetIndex, name, videoUrl };
+      const entry = { targetIndex, name, videoUrl, mindFile: mindFilePath };
       if (existingIdx >= 0) {
         targets[existingIdx] = entry;
       } else {
@@ -279,89 +314,7 @@
       }
       document.getElementById('targetIndex').value = targetIndex + 1;
       saveAndRenderTargets();
-      log(`Saved Target #${targetIndex} (${name}) -> ${videoUrl}`);
-    }
-
-    function ensureMindScriptLoaded() {
-      return new Promise((resolve) => {
-        if (window.MINDAR?.IMAGE?.Compiler) {
-          resolve(true);
-          return;
-        }
-        const s = document.createElement('script');
-        s.src = 'https://unpkg.com/mind-ar@1.2.5/dist/mindar-image-target.prod.js';
-        s.onload = () => resolve(Boolean(window.MINDAR?.IMAGE?.Compiler));
-        s.onerror = () => resolve(false);
-        document.head.appendChild(s);
-      });
-    }
-
-    function handleImageChange(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        loadedImageEl = img;
-        const preview = document.getElementById('imgPreview');
-        preview.src = url;
-        preview.style.display = 'inline-block';
-        document.getElementById('imgPlaceholder').style.display = 'none';
-        log(`Image loaded (${img.width}x${img.height}).`);
-      };
-      img.src = url;
-    }
-
-    function handleVideoChange(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      videoFileName = file.name;
-      const url = URL.createObjectURL(file);
-      const vid = document.getElementById('vidPreview');
-      vid.src = url;
-      vid.style.display = 'inline-block';
-      document.getElementById('vidPlaceholder').style.display = 'none';
-      log(`Video loaded: ${file.name}`);
-    }
-
-    function getResizedCanvasImage(img, maxSide = 800) {
-      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(64, Math.round(img.width * scale));
-      canvas.height = Math.max(64, Math.round(img.height * scale));
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      return canvas;
-    }
-
-    async function compileMindFile() {
-      if (!loadedImageEl) {
-        alert('Please select a target image first.');
-        return;
-      }
-      log('Checking MindAR Compiler...');
-      const ok = await ensureMindScriptLoaded();
-      if (!ok || !window.MINDAR?.IMAGE?.Compiler) {
-        log('CDN blocked in this browser. Use "Official MindAR Compiler" button or upload pre-compiled targets.mind to ./assets/targets.mind.');
-        return;
-      }
-      try {
-        const targetCanvas = getResizedCanvasImage(loadedImageEl, 800);
-        log(`Compiling .mind tracking data (${targetCanvas.width}x${targetCanvas.height})...`);
-        const compiler = new window.MINDAR.IMAGE.Compiler();
-        await compiler.compileImageTargets([targetCanvas], (progress) => {
-          log(`Compiling target features: ${Math.round(progress)}%`);
-        });
-        const exportedBuffer = await compiler.exportData();
-        const blob = new Blob([exportedBuffer], { type: 'application/octet-stream' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'targets.mind';
-        link.click();
-        log('Downloaded targets.mind! Upload it to ./assets/targets.mind on GitHub.');
-      } catch (err) {
-        log('Compilation error: ' + (err?.message || err));
-      }
+      log(`Saved Target #${targetIndex} (${name}) -> ${videoUrl} [${mindFilePath}]`);
     }
 
     function downloadTargetsJson() {
@@ -370,7 +323,7 @@
       }
       const payload = {
         brand: 'AYZESHLIVE',
-        mindFile: './assets/targets.mind',
+        mindFile: mindFilePath,
         targets
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
