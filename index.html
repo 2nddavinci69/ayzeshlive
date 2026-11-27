@@ -113,6 +113,41 @@
       width: 100% !important;
       height: 100% !important;
     }
+    .video-stage {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 25;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+    }
+    .video-stage.show {
+      display: flex;
+    }
+    .video-stage video {
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .close-stage-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 30;
+      background: #ff6b00;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-weight: 800;
+      font-size: 12px;
+      cursor: pointer;
+    }
     .qr-panel {
       display: none;
       width: 100%;
@@ -221,15 +256,20 @@
             <a-video
               id="arPlane0"
               src="#arVideo0"
-              width="1.2"
-              height="0.675"
-              position="0 0 0.02"
-              material="side: double; transparent: false;"
+              width="0.9"
+              height="0.506"
+              position="0 0 0.01"
+              material="side: double;"
               visible="false"
             ></a-video>
           </a-entity>
         </a-entity>
       </a-scene>
+
+      <div id="videoStage" class="video-stage">
+        <button class="close-stage-btn" onclick="hideVideoStage()">✕ Hide Video</button>
+        <video id="stageVideo" src="./assets/jingpeng1.mp4" playsinline webkit-playsinline loop muted></video>
+      </div>
     </div>
 
     <div class="qr-panel" id="qrPanel">
@@ -242,7 +282,7 @@
     <div class="status-bar">
       <span id="statusText">Point camera at target image to play video.</span>
       <div class="btn-group-right">
-        <button class="sound-btn ghost" onclick="toggleBoxSize()">⛶ Size</button>
+        <button class="sound-btn ghost" onclick="toggleStagePreview()">🎬 Fit View</button>
         <button id="soundBtn" class="sound-btn" onclick="toggleSoundOrPlay()">🔊 Unmute / Play</button>
       </div>
     </div>
@@ -252,13 +292,34 @@
     const statusText = document.getElementById('statusText');
     const soundBtn = document.getElementById('soundBtn');
     const arContainer = document.getElementById('arContainer');
+    const videoStage = document.getElementById('videoStage');
+    const stageVideo = document.getElementById('stageVideo');
     let activeVideoEl = document.getElementById('arVideo0');
     let isTargetDetected = false;
-    let tallBox = false;
 
-    function toggleBoxSize() {
-      tallBox = !tallBox;
-      arContainer.style.height = tallBox ? '86vh' : '76vh';
+    function showVideoStage(srcUrl) {
+      if (srcUrl && stageVideo.src !== srcUrl) {
+        stageVideo.src = srcUrl;
+      }
+      stageVideo.muted = activeVideoEl ? activeVideoEl.muted : true;
+      videoStage.classList.add('show');
+      stageVideo.play().catch(() => {});
+    }
+
+    function hideVideoStage() {
+      stageVideo.pause();
+      videoStage.classList.remove('show');
+    }
+
+    function toggleStagePreview() {
+      if (videoStage.classList.contains('show')) {
+        hideVideoStage();
+        statusText.innerText = 'Returned to camera scan view.';
+      } else {
+        const currentSrc = (activeVideoEl && (activeVideoEl.currentSrc || activeVideoEl.src)) || './assets/jingpeng1.mp4';
+        showVideoStage(currentSrc);
+        statusText.innerText = 'Showing full video (no crop).';
+      }
     }
 
     function attachTargetEvents(targetEl, planeEl, vidEl, label) {
@@ -271,12 +332,14 @@
         planeEl.setAttribute('visible', 'true');
         statusText.innerText = `Detected: ${label} — Playing video...`;
         vidEl.play().catch(() => {});
+        showVideoStage(vidEl.currentSrc || vidEl.src);
       });
 
       targetEl.addEventListener('targetLost', () => {
         isTargetDetected = false;
         planeEl.setAttribute('visible', 'false');
         vidEl.pause();
+        hideVideoStage();
         statusText.innerText = `Target lost (${label}). Point camera at image again.`;
       });
     }
@@ -294,8 +357,10 @@
       const queryTarget = parseInt(params.get('target') || '0', 10);
 
       if (queryVideo) {
+        const decoded = decodeURIComponent(queryVideo);
         const targetVid = document.getElementById(`arVideo${queryTarget}`) || activeVideoEl;
-        targetVid.src = decodeURIComponent(queryVideo);
+        targetVid.src = decoded;
+        stageVideo.src = decoded;
         activeVideoEl = targetVid;
       }
 
@@ -319,10 +384,11 @@
             const idx = typeof t.targetIndex === 'number' ? t.targetIndex : i;
             const vidId = `arVideo${idx}`;
             const planeId = `arPlane${idx}`;
+            const resolvedSrc = (idx === queryTarget && queryVideo) ? decodeURIComponent(queryVideo) : t.videoUrl;
 
             const v = document.createElement('video');
             v.id = vidId;
-            v.src = (idx === queryTarget && queryVideo) ? decodeURIComponent(queryVideo) : t.videoUrl;
+            v.src = resolvedSrc;
             v.preload = 'auto';
             v.loop = true;
             v.crossOrigin = 'anonymous';
@@ -338,16 +404,19 @@
             const plane = document.createElement('a-video');
             plane.id = planeId;
             plane.setAttribute('src', `#${vidId}`);
-            plane.setAttribute('width', '1.2');
-            plane.setAttribute('height', '0.675');
-            plane.setAttribute('position', '0 0 0.02');
-            plane.setAttribute('material', 'side: double; transparent: false;');
+            plane.setAttribute('width', '0.9');
+            plane.setAttribute('height', '0.506');
+            plane.setAttribute('position', '0 0 0.01');
+            plane.setAttribute('material', 'side: double;');
             plane.setAttribute('visible', 'false');
 
             ent.appendChild(plane);
             containerEl.appendChild(ent);
 
-            if (idx === 0 || idx === queryTarget) activeVideoEl = v;
+            if (idx === 0 || idx === queryTarget) {
+              activeVideoEl = v;
+              stageVideo.src = resolvedSrc;
+            }
             attachTargetEvents(ent, plane, v, t.name || `Target #${idx}`);
           });
         }
@@ -357,22 +426,25 @@
     initTargetsConfig();
 
     function toggleSoundOrPlay() {
-      if (!activeVideoEl) return;
+      const targetPlayer = videoStage.classList.contains('show') ? stageVideo : activeVideoEl;
+      if (!targetPlayer) return;
 
-      if (activeVideoEl.muted) {
-        activeVideoEl.muted = false;
-        activeVideoEl.play().catch(() => {});
+      if (targetPlayer.muted) {
+        targetPlayer.muted = false;
+        if (activeVideoEl) activeVideoEl.muted = false;
+        stageVideo.muted = false;
+        targetPlayer.play().catch(() => {});
         soundBtn.innerText = '⏸ Pause / Mute';
         statusText.innerText = 'Sound enabled & playing.';
         return;
       }
 
-      if (activeVideoEl.paused) {
-        activeVideoEl.play().catch(() => {});
+      if (targetPlayer.paused) {
+        targetPlayer.play().catch(() => {});
         soundBtn.innerText = '⏸ Pause';
         statusText.innerText = 'Video playing.';
       } else {
-        activeVideoEl.pause();
+        targetPlayer.pause();
         soundBtn.innerText = '▶ Play';
         statusText.innerText = 'Video paused.';
       }
@@ -380,9 +452,15 @@
 
     function loadLocalVideo(e) {
       const file = e.target.files[0];
-      if (!file || !activeVideoEl) return;
-      activeVideoEl.src = URL.createObjectURL(file);
-      activeVideoEl.load();
+      if (!file) return;
+      const blobUrl = URL.createObjectURL(file);
+      if (activeVideoEl) {
+        activeVideoEl.src = blobUrl;
+        activeVideoEl.load();
+      }
+      stageVideo.src = blobUrl;
+      stageVideo.load();
+      showVideoStage(blobUrl);
       statusText.innerText = 'Loaded local video: ' + file.name;
     }
 
@@ -395,7 +473,8 @@
       const modeQrBtn = document.getElementById('modeQrBtn');
 
       if (mode === 'qr') {
-        activeVideoEl.pause();
+        if (activeVideoEl) activeVideoEl.pause();
+        hideVideoStage();
         arContainer.style.display = 'none';
         qrPanel.classList.add('show');
         modeQrBtn.classList.add('active');
@@ -407,8 +486,9 @@
         arContainer.style.display = 'block';
         modeArBtn.classList.add('active');
         modeQrBtn.classList.remove('active');
-        if (isTargetDetected) {
+        if (isTargetDetected && activeVideoEl) {
           activeVideoEl.play().catch(() => {});
+          showVideoStage(activeVideoEl.currentSrc || activeVideoEl.src);
         }
       }
     }
@@ -450,11 +530,4 @@
 
     function stopQrScan() {
       if (qrLoopId) cancelAnimationFrame(qrLoopId);
-      if (qrStream) {
-        qrStream.getTracks().forEach(t => t.stop());
-        qrStream = null;
-      }
-    }
-  </script>
-</body>
-</html>
+      if (qr
