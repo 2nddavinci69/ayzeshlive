@@ -100,7 +100,7 @@
       border: 1px solid #263147;
       overflow: hidden;
     }
-    /* MindAR ke apnay camera video ko box ke andar upar laana */
+    #fallbackCamVideo,
     .ar-box > video {
       position: absolute !important;
       top: 0 !important;
@@ -110,12 +110,19 @@
       object-fit: cover !important;
       z-index: 1 !important;
     }
+    #fallbackCamVideo {
+      display: none;
+      z-index: 2 !important;
+    }
+    #fallbackCamVideo.show {
+      display: block;
+    }
     .ar-box a-scene {
       position: absolute !important;
       inset: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      z-index: 2 !important;
+      z-index: 3 !important;
       pointer-events: none;
     }
     .ar-box canvas.a-canvas {
@@ -217,6 +224,8 @@
     </div>
 
     <div class="ar-box" id="arContainer">
+      <video id="fallbackCamVideo" playsinline webkit-playsinline autoplay muted></video>
+
       <a-scene
         id="arScene"
         mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: false; uiScanning: no; uiLoading: no;"
@@ -252,12 +261,14 @@
     const muteBtn = document.getElementById('muteBtn');
     const playBtn = document.getElementById('playBtn');
     const arScene = document.getElementById('arScene');
+    const fallbackCamVideo = document.getElementById('fallbackCamVideo');
     const videoStage = document.getElementById('videoStage');
     const stageVideo = document.getElementById('stageVideo');
 
     let arRunning = false;
     let isStarting = false;
     let scannedVideoUrl = '';
+    let fallbackStream = null;
 
     function syncButtons() {
       muteBtn.innerText = stageVideo.muted ? '🔇 Unmute' : '🔊 Mute';
@@ -285,35 +296,55 @@
       stageVideo.pause();
       videoStage.classList.remove('show');
       syncButtons();
-      statusText.innerText = arRunning
+      statusText.innerText = (arRunning || fallbackStream)
         ? 'Camera ON — point at target image to scan.'
         : 'Click "Scan Camera" to scan target image.';
+    }
+
+    async function startFallbackCamera() {
+      try {
+        if (!fallbackStream || !fallbackStream.active) {
+          fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+        fallbackCamVideo.srcObject = fallbackStream;
+        fallbackCamVideo.classList.add('show');
+        await fallbackCamVideo.play().catch(() => {});
+        statusText.innerText = 'Camera ON (live preview) — point at target image.';
+        return true;
+      } catch (err) {
+        statusText.innerText = 'Camera error: ' + (err && err.message ? err.message : 'Check camera permission.');
+        return false;
+      }
     }
 
     arScene.addEventListener('arReady', () => {
       arRunning = true;
       isStarting = false;
+      fallbackCamVideo.classList.remove('show');
       statusText.innerText = 'Camera ON — point at target image to scan.';
     });
 
-    arScene.addEventListener('arError', () => {
+    arScene.addEventListener('arError', async () => {
       arRunning = false;
       isStarting = false;
-      statusText.innerText = 'Camera error: Close other camera tabs/apps, check camera permission, and retry.';
+      await startFallbackCamera();
     });
+
+    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
+      targetEl.addEventListener('targetFound', () => {
+        if (videoUrlForTarget) {
+          triggerMatchedVideo(videoUrlForTarget, label);
+        }
+      });
+    }
+
+    attachTargetEvents(document.getElementById('arTarget0'), './assets/jingpeng1.mp4', 'JINPENG-01');
 
     async function initTargetsConfig() {
       try {
         const res = await fetch('./targets.json', { cache: 'no-store' });
         if (!res.ok) return;
         const cfg = await res.json();
-
-        if (cfg.mindFile) {
-          arScene.setAttribute(
-            'mindar-image',
-            `imageTargetSrc: ${cfg.mindFile}; autoStart: false; uiScanning: no; uiLoading: no;`
-          );
-        }
 
         if (Array.isArray(cfg.targets) && cfg.targets.length) {
           const containerEl = document.getElementById('targetsContainer');
@@ -332,15 +363,6 @@
       } catch (_) {}
     }
 
-    function attachTargetEvents(targetEl, videoUrlForTarget, label) {
-      targetEl.addEventListener('targetFound', () => {
-        if (videoUrlForTarget) {
-          triggerMatchedVideo(videoUrlForTarget, label);
-        }
-      });
-    }
-
-    attachTargetEvents(document.getElementById('arTarget0'), './assets/jingpeng1.mp4', 'JINPENG-01');
     const targetsReady = initTargetsConfig();
 
     async function startScanCamera() {
@@ -361,18 +383,27 @@
         await targetsReady;
 
         if (!arScene.hasLoaded) {
-          await new Promise(resolve => arScene.addEventListener('loaded', resolve, { once: true }));
+          await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Scene load timeout')), 6000);
+            arScene.addEventListener('loaded', () => {
+              clearTimeout(timer);
+              resolve();
+            }, { once: true });
+          });
         }
 
         const arSystem = arScene.systems && arScene.systems['mindar-image-system'];
         if (!arSystem) {
-          throw new Error('AR system not ready. Refresh page.');
+          throw new Error('AR system unavailable');
         }
 
-        await arSystem.start();
-      } catch (err) {
+        await Promise.race([
+          arSystem.start(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('AR start timeout')), 7000))
+        ]);
+      } catch (_) {
         isStarting = false;
-        statusText.innerText = 'Camera error: ' + (err && err.message ? err.message : 'Could not start camera.');
+        await startFallbackCamera();
       }
     }
 
@@ -397,7 +428,6 @@
       syncButtons();
     }
 
-    // Tab close/refresh par camera hardware release karna
     function releaseCamera() {
       document.querySelectorAll('video').forEach(v => {
         if (v.srcObject && typeof v.srcObject.getTracks === 'function') {
@@ -405,6 +435,7 @@
           v.srcObject = null;
         }
       });
+      fallbackStream = null;
     }
     window.addEventListener('pagehide', releaseCamera);
     window.addEventListener('beforeunload', releaseCamera);
