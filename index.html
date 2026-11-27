@@ -318,7 +318,6 @@
       playBtn.innerText = stageVideo.paused ? '▶ Play' : '⏸ Pause';
     }
 
-    // MindAR ke inject kiye hue camera <video> element ko ar-box ke andar align karein
     function syncMindArCameraVideo() {
       document.querySelectorAll('video').forEach((vid) => {
         if (vid.id !== 'stageVideo' && vid.id !== 'qrVideo' && !vid.closest('#arAssets')) {
@@ -343,7 +342,7 @@
     });
 
     arScene.addEventListener('arError', () => {
-      statusText.innerText = 'Camera/AR error — check browser camera permission.';
+      statusText.innerText = 'Camera/AR error — check browser camera permission or switch to Direct QR Scan.';
     });
 
     setInterval(syncMindArCameraVideo, 1000);
