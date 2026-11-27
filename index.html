@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AYZESHLIVE — Scan & Play AR</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#ff6b00" />
+
+  <!-- A-Frame & MindAR Image Tracking -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <!-- QR Scanner Library -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0b0f19;
+      color: #ffffff;
+      overflow-x: hidden;
+    }
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 64px;
+      background: #000000;
+      border-bottom: 2px solid #ff6b00;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 999;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .brand-title {
+      font-size: 19px;
+      font-weight: 900;
+      color: #ff6b00;
+      letter-spacing: 1.5px;
+    }
+    .brand-sub {
+      font-size: 10px;
+      color: #9ca3af;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .nav-btn {
+      background: #ff6b00;
+      color: #000000;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+    }
+    .main-wrap {
+      padding-top: 64px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .controls {
+      width: 100%;
+      max-width: 640px;
+      padding: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+    }
+    .ctrl-btn {
+      background: #141b2d;
+      color: #ffffff;
+      border: 1px solid #ff6b00;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .ctrl-btn.active {
+      background: #ff6b00;
+      color: #000000;
+    }
+    .ar-box {
+      position: relative;
+      width: 100%;
+      max-width: 640px;
+      height: 74vh;
+      min-height: 420px;
+      background: #000000;
+      border: 1px solid #263147;
+      overflow: hidden;
+    }
+    .qr-panel {
+      display: none;
+      width: 100%;
+      max-width: 640px;
+      padding: 16px;
+      background: #141b2d;
+      text-align: center;
+    }
+    .qr-panel.show { display: block; }
+    video#qrVideo {
+      width: 100%;
+      max-width: 360px;
+      border-radius: 12px;
+      border: 2px solid #ff6b00;
+      background: #000;
+    }
+    .status-bar {
+      width: 100%;
+      max-width: 640px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #d1d5db;
+      background: #141b2d;
+      border-top: 1px solid #263147;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .sound-btn {
+      background: #ff6b00;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <a href="./index.html" class="brand">
+      <svg width="34" height="34" viewBox="0 0 64 64">
+        <rect x="2" y="2" width="60" height="60" rx="14" fill="#000" stroke="#ff6b00" stroke-width="3"/>
+        <path d="M18 46 L32 16 L46 46 M23 36 H41" stroke="#ff6b00" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="32" cy="48" r="4" fill="#fff"/>
+      </svg>
+      <div>
+        <div class="brand-title">AYZESHLIVE</div>
+        <div class="brand-sub">Scan & Play AR</div>
+      </div>
+    </a>
+    <a href="./builder.html" class="nav-btn">+ Builder</a>
+  </header>
+
+  <div class="main-wrap">
+    <div class="controls">
+      <button id="modeArBtn" class="ctrl-btn active" onclick="switchMode('ar')">📷 Image AR Scan</button>
+      <button id="modeQrBtn" class="ctrl-btn" onclick="switchMode('qr')">🔳 Direct QR Scan</button>
+      <label class="ctrl-btn">
+        📁 Load Local Video
+        <input type="file" id="localVideoInput" accept="video/mp4,video/*" style="display:none;" onchange="loadLocalVideo(event)" />
+      </label>
+    </div>
+
+    <div class="ar-box" id="arContainer">
+      <a-scene
+        id="arScene"
+        mindar-image="imageTargetSrc: ./assets/targets.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false"
+      >
+        <a-assets>
+          <video
+            id="arVideo"
+            src="./assets/demo.mp4"
+            preload="auto"
+            loop="true"
+            crossorigin="anonymous"
+            playsinline
+            webkit-playsinline
+            muted
+          ></video>
+        </a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity id="arTarget" mindar-image-target="targetIndex: 0">
+          <a-video
+            src="#arVideo"
+            width="1"
+            height="0.5625"
+            position="0 0 0"
+          ></a-video>
+        </a-entity>
+      </a-scene>
+    </div>
+
+    <div class="qr-panel" id="qrPanel">
+      <p style="margin-top:0; color:#ff6b00; font-weight:700;">Scan AYZESHLIVE QR Code</p>
+      <video id="qrVideo" playsinline></video>
+      <canvas id="qrCanvas" style="display:none;"></canvas>
+      <p id="qrResult" style="font-size:13px; color:#d1d5db; word-break:break-all;">Waiting for QR code...</p>
+    </div>
+
+    <div class="status-bar">
+      <span id="statusText">Point camera at target image to play video.</span>
+      <button class="sound-btn" onclick="enableSound()">🔊 Unmute / Play</button>
+    </div>
+  </div>
+
+  <script>
+    const videoEl = document.getElementById('arVideo');
+    const targetEl = document.getElementById('arTarget');
+    const statusText = document.getElementById('statusText');
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('video')) {
+      videoEl.src = decodeURIComponent(params.get('video'));
+    }
+    if (params.get('mind')) {
+      const scene = document.getElementById('arScene');
+      scene.setAttribute('mindar-image', `imageTargetSrc: ${decodeURIComponent(params.get('mind'))}; autoStart: true; uiScanning: yes; uiLoading: yes;`);
+    }
+
+    targetEl.addEventListener('targetFound', () => {
+      statusText.innerText = 'Target detected! Playing video...';
+      videoEl.play().catch(() => {});
+    });
+
+    targetEl.addEventListener('targetLost', () => {
+      statusText.innerText = 'Target lost. Scan image again.';
+      videoEl.pause();
+    });
+
+    function enableSound() {
+      videoEl.muted = false;
+      videoEl.play().catch(() => {
+        alert('Tap target image or allow autoplay.');
+      });
+    }
+
+    function loadLocalVideo(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      videoEl.src = URL.createObjectURL(file);
+      videoEl.load();
+      statusText.innerText = 'Loaded video: ' + file.name;
+    }
+
+    let qrStream = null;
+    let qrLoopId = null;
+
+    function switchMode(mode) {
+      const arContainer = document.getElementById('arContainer');
+      const qrPanel = document.getElementById('qrPanel');
+      const modeArBtn = document.getElementById('modeArBtn');
+      const modeQrBtn = document.getElementById('modeQrBtn');
+
+      if (mode === 'qr') {
+        arContainer.style.display = 'none';
+        qrPanel.classList.add('show');
+        modeQrBtn.classList.add('active');
+        modeArBtn.classList.remove('active');
+        startQrScan();
+      } else {
+        stopQrScan();
+        qrPanel.classList.remove('show');
+        arContainer.style.display = 'block';
+        modeArBtn.classList.add('active');
+        modeQrBtn.classList.remove('active');
+      }
+    }
+
+    async function startQrScan() {
+      const qrVideo = document.getElementById('qrVideo');
+      const qrCanvas = document.getElementById('qrCanvas');
+      const ctx = qrCanvas.getContext('2d');
+      const qrResult = document.getElementById('qrResult');
+
+      try {
+        qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        qrVideo.srcObject = qrStream;
+        await qrVideo.play();
+
+        function scanFrame() {
+          if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+            qrCanvas.width = qrVideo.videoWidth;
+            qrCanvas.height = qrVideo.videoHeight;
+            ctx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+            const imgData = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+            const code = jsQR(imgData.data, imgData.width, imgData.height);
+            if (code && code.data) {
+              qrResult.innerHTML = 'QR Found: <a href="' + code.data + '" style="color:#ff6b00;">' + code.data + '</a>';
+              if (code.data.startsWith('http')) {
+                stopQrScan();
+                window.location.href = code.data;
+                return;
+              }
+            }
+          }
+          qrLoopId = requestAnimationFrame(scanFrame);
+        }
+        qrLoopId = requestAnimationFrame(scanFrame);
+      } catch (err) {
+        qrResult.innerText = 'Camera error: ' + err.message;
+      }
+    }
+
+    function stopQrScan() {
+      if (qrLoopId) cancelAnimationFrame(qrLoopId);
+      if (qrStream) {
+        qrStream.getTracks().forEach(t => t.stop());
+        qrStream = null;
+      }
+    }
+  </script>
+</body>
+</html>
