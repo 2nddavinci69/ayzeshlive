@@ -72,7 +72,7 @@
     }
     .controls {
       width: 100%;
-      max-width: 640px;
+      max-width: 720px;
       padding: 12px;
       display: flex;
       gap: 8px;
@@ -98,17 +98,25 @@
     .ar-box {
       position: relative;
       width: 100%;
-      max-width: 640px;
-      height: 74vh;
-      min-height: 420px;
+      max-width: 720px;
+      height: 76vh;
+      min-height: 440px;
       background: #000000;
       border: 1px solid #263147;
       overflow: hidden;
     }
+    .ar-box a-scene,
+    .ar-box canvas.a-canvas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
     .qr-panel {
       display: none;
       width: 100%;
-      max-width: 640px;
+      max-width: 720px;
       padding: 16px;
       background: #141b2d;
       text-align: center;
@@ -123,7 +131,7 @@
     }
     .status-bar {
       width: 100%;
-      max-width: 640px;
+      max-width: 720px;
       padding: 10px 14px;
       font-size: 13px;
       color: #d1d5db;
@@ -133,6 +141,11 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
+    }
+    .btn-group-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
     .sound-btn {
       background: #ff6b00;
@@ -144,6 +157,11 @@
       cursor: pointer;
       font-size: 12px;
       white-space: nowrap;
+    }
+    .sound-btn.ghost {
+      background: #1f2937;
+      color: #ffffff;
+      border: 1px solid #ff6b00;
     }
   </style>
 </head>
@@ -179,7 +197,7 @@
         id="arScene"
         mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
         color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
+        renderer="colorManagement: true, physicallyCorrectLights, antialias: true"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
       >
@@ -200,7 +218,15 @@
 
         <a-entity id="targetsContainer">
           <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
-            <a-video id="arPlane0" src="#arVideo0" width="1" height="0.5625" position="0 0 0" visible="false"></a-video>
+            <a-video
+              id="arPlane0"
+              src="#arVideo0"
+              width="1.2"
+              height="0.675"
+              position="0 0 0.02"
+              material="side: double; transparent: false;"
+              visible="false"
+            ></a-video>
           </a-entity>
         </a-entity>
       </a-scene>
@@ -215,15 +241,25 @@
 
     <div class="status-bar">
       <span id="statusText">Point camera at target image to play video.</span>
-      <button id="soundBtn" class="sound-btn" onclick="toggleSoundOrPlay()">🔊 Unmute / Play</button>
+      <div class="btn-group-right">
+        <button class="sound-btn ghost" onclick="toggleBoxSize()">⛶ Size</button>
+        <button id="soundBtn" class="sound-btn" onclick="toggleSoundOrPlay()">🔊 Unmute / Play</button>
+      </div>
     </div>
   </div>
 
   <script>
     const statusText = document.getElementById('statusText');
     const soundBtn = document.getElementById('soundBtn');
+    const arContainer = document.getElementById('arContainer');
     let activeVideoEl = document.getElementById('arVideo0');
     let isTargetDetected = false;
+    let tallBox = false;
+
+    function toggleBoxSize() {
+      tallBox = !tallBox;
+      arContainer.style.height = tallBox ? '86vh' : '76vh';
+    }
 
     function attachTargetEvents(targetEl, planeEl, vidEl, label) {
       planeEl.setAttribute('visible', 'false');
@@ -302,9 +338,10 @@
             const plane = document.createElement('a-video');
             plane.id = planeId;
             plane.setAttribute('src', `#${vidId}`);
-            plane.setAttribute('width', '1');
-            plane.setAttribute('height', '0.5625');
-            plane.setAttribute('position', '0 0 0');
+            plane.setAttribute('width', '1.2');
+            plane.setAttribute('height', '0.675');
+            plane.setAttribute('position', '0 0 0.02');
+            plane.setAttribute('material', 'side: double; transparent: false;');
             plane.setAttribute('visible', 'false');
 
             ent.appendChild(plane);
@@ -353,7 +390,6 @@
     let qrLoopId = null;
 
     function switchMode(mode) {
-      const arContainer = document.getElementById('arContainer');
       const qrPanel = document.getElementById('qrPanel');
       const modeArBtn = document.getElementById('modeArBtn');
       const modeQrBtn = document.getElementById('modeQrBtn');
