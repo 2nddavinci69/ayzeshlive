@@ -7,10 +7,8 @@
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#ff6b00" />
 
-  <!-- A-Frame & MindAR Image Tracking -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-  <!-- QR Scanner Library -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
@@ -184,9 +182,9 @@
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
       >
-        <a-assets>
+        <a-assets id="arAssets">
           <video
-            id="arVideo"
+            id="arVideo0"
             src="./assets/demo.mp4"
             preload="auto"
             loop="true"
@@ -199,13 +197,10 @@
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-        <a-entity id="arTarget" mindar-image-target="targetIndex: 0">
-          <a-video
-            src="#arVideo"
-            width="1"
-            height="0.5625"
-            position="0 0 0"
-          ></a-video>
+        <a-entity id="targetsContainer">
+          <a-entity id="arTarget0" mindar-image-target="targetIndex: 0">
+            <a-video src="#arVideo0" width="1" height="0.5625" position="0 0 0"></a-video>
+          </a-entity>
         </a-entity>
       </a-scene>
     </div>
@@ -224,42 +219,100 @@
   </div>
 
   <script>
-    const videoEl = document.getElementById('arVideo');
-    const targetEl = document.getElementById('arTarget');
     const statusText = document.getElementById('statusText');
+    let activeVideoEl = document.getElementById('arVideo0');
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('video')) {
-      videoEl.src = decodeURIComponent(params.get('video'));
+    function attachTargetEvents(targetEl, vidEl, label) {
+      targetEl.addEventListener('targetFound', () => {
+        activeVideoEl = vidEl;
+        statusText.innerText = `Detected: ${label} — Playing video...`;
+        vidEl.play().catch(() => {});
+      });
+      targetEl.addEventListener('targetLost', () => {
+        statusText.innerText = `Target lost (${label}). Scan again.`;
+        vidEl.pause();
+      });
     }
-    if (params.get('mind')) {
-      const scene = document.getElementById('arScene');
-      scene.setAttribute('mindar-image', `imageTargetSrc: ${decodeURIComponent(params.get('mind'))}; autoStart: true; uiScanning: yes; uiLoading: yes;`);
+
+    attachTargetEvents(document.getElementById('arTarget0'), activeVideoEl, 'Target #0');
+
+    async function initTargetsConfig() {
+      const params = new URLSearchParams(window.location.search);
+      const queryVideo = params.get('video');
+      const queryTarget = parseInt(params.get('target') || '0', 10);
+
+      if (queryVideo) {
+        const targetVid = document.getElementById(`arVideo${queryTarget}`) || activeVideoEl;
+        targetVid.src = decodeURIComponent(queryVideo);
+        activeVideoEl = targetVid;
+      }
+
+      try {
+        const res = await fetch('./targets.json', { cache: 'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+        if (cfg.mindFile) {
+          document.getElementById('arScene').setAttribute(
+            'mindar-image',
+            `imageTargetSrc: ${cfg.mindFile}; autoStart: true; uiScanning: yes; uiLoading: yes;`
+          );
+        }
+        if (Array.isArray(cfg.targets) && cfg.targets.length) {
+          const assetsEl = document.getElementById('arAssets');
+          const containerEl = document.getElementById('targetsContainer');
+          assetsEl.innerHTML = '';
+          containerEl.innerHTML = '';
+
+          cfg.targets.forEach((t, i) => {
+            const idx = typeof t.targetIndex === 'number' ? t.targetIndex : i;
+            const vidId = `arVideo${idx}`;
+            const v = document.createElement('video');
+            v.id = vidId;
+            v.src = (idx === queryTarget && queryVideo) ? decodeURIComponent(queryVideo) : t.videoUrl;
+            v.preload = 'auto';
+            v.loop = true;
+            v.crossOrigin = 'anonymous';
+            v.playsinline = true;
+            v.setAttribute('webkit-playsinline', '');
+            v.muted = true;
+            assetsEl.appendChild(v);
+
+            const ent = document.createElement('a-entity');
+            ent.id = `arTarget${idx}`;
+            ent.setAttribute('mindar-image-target', `targetIndex: ${idx}`);
+
+            const plane = document.createElement('a-video');
+            plane.setAttribute('src', `#${vidId}`);
+            plane.setAttribute('width', '1');
+            plane.setAttribute('height', '0.5625');
+            plane.setAttribute('position', '0 0 0');
+
+            ent.appendChild(plane);
+            containerEl.appendChild(ent);
+
+            if (idx === 0 || idx === queryTarget) activeVideoEl = v;
+            attachTargetEvents(ent, v, t.name || `Target #${idx}`);
+          });
+        }
+      } catch (_) {}
     }
 
-    targetEl.addEventListener('targetFound', () => {
-      statusText.innerText = 'Target detected! Playing video...';
-      videoEl.play().catch(() => {});
-    });
-
-    targetEl.addEventListener('targetLost', () => {
-      statusText.innerText = 'Target lost. Scan image again.';
-      videoEl.pause();
-    });
+    initTargetsConfig();
 
     function enableSound() {
-      videoEl.muted = false;
-      videoEl.play().catch(() => {
+      if (!activeVideoEl) return;
+      activeVideoEl.muted = false;
+      activeVideoEl.play().catch(() => {
         alert('Tap target image or allow autoplay.');
       });
     }
 
     function loadLocalVideo(e) {
       const file = e.target.files[0];
-      if (!file) return;
-      videoEl.src = URL.createObjectURL(file);
-      videoEl.load();
-      statusText.innerText = 'Loaded video: ' + file.name;
+      if (!file || !activeVideoEl) return;
+      activeVideoEl.src = URL.createObjectURL(file);
+      activeVideoEl.load();
+      statusText.innerText = 'Loaded local video: ' + file.name;
     }
 
     let qrStream = null;
