@@ -263,7 +263,7 @@
     let camStream = null;
     let arStarted = false;
     let scannedVideoUrl = '';
-    let scanFrameTimer = null;
+    let isStartingCamera = false;
 
     function syncButtons() {
       muteBtn.innerText = stageVideo.muted ? '🔇 Unmute' : '🔊 Mute';
@@ -287,17 +287,29 @@
       syncButtons();
     }
 
+    async function acquireCameraStream() {
+      try {
+        return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      } catch (_) {
+        return await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+      }
+    }
+
     async function startScanCamera() {
       stageVideo.pause();
       videoStage.classList.remove('show');
       syncButtons();
 
+      if (isStartingCamera) return;
+      isStartingCamera = true;
+      statusText.innerText = 'Starting camera...';
+
       try {
-        if (!camStream) {
-          camStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' } },
-            audio: false
-          });
+        if (!camStream || !camStream.active) {
+          camStream = await acquireCameraStream();
         }
         scanCamVideo.srcObject = camStream;
         scanCamVideo.classList.add('show');
@@ -306,10 +318,16 @@
 
         if (!arStarted && arScene.systems && arScene.systems['mindar-image-system']) {
           arStarted = true;
-          arScene.systems['mindar-image-system'].start();
+          setTimeout(() => {
+            try {
+              arScene.systems['mindar-image-system'].start();
+            } catch (_) {}
+          }, 400);
         }
       } catch (err) {
         statusText.innerText = 'Camera error: ' + (err.message || 'Allow camera permission in browser.');
+      } finally {
+        isStartingCamera = false;
       }
     }
 
