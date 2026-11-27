@@ -1,0 +1,12 @@
+{
+  "brand": "AYZESHLIVE",
+  "mindFile": "./assets/targets.mind",
+  "targets": [
+    {
+      "targetIndex": 0,
+      "name": "JINPENG-01",
+      "videoUrl": "./assets/jinpeng.mp4",
+      "mindFile": "./assets/targets.mind"
+    }
+  ]
+}
