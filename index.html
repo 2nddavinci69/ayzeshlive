@@ -112,13 +112,14 @@
       left: 0 !important;
       width: 100% !important;
       height: 100% !important;
+      transform: none !important;
     }
     .video-stage {
       display: none;
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.92);
-      z-index: 25;
+      background: #000000;
+      z-index: 30;
       align-items: center;
       justify-content: center;
       padding: 12px;
@@ -127,18 +128,19 @@
       display: flex;
     }
     .video-stage video {
-      width: 100%;
-      height: 100%;
+      width: auto;
+      height: auto;
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
-      border-radius: 8px;
+      transform: none !important;
+      border-radius: 6px;
     }
     .close-stage-btn {
       position: absolute;
       top: 10px;
       right: 10px;
-      z-index: 30;
+      z-index: 35;
       background: #ff6b00;
       color: #000;
       border: none;
@@ -256,8 +258,8 @@
             <a-video
               id="arPlane0"
               src="#arVideo0"
-              width="0.9"
-              height="0.506"
+              width="0.8"
+              height="0.45"
               position="0 0 0.01"
               material="side: double;"
               visible="false"
@@ -267,7 +269,7 @@
       </a-scene>
 
       <div id="videoStage" class="video-stage">
-        <button class="close-stage-btn" onclick="hideVideoStage()">✕ Hide Video</button>
+        <button class="close-stage-btn" onclick="hideVideoStage()">✕ Camera</button>
         <video id="stageVideo" src="./assets/jingpeng1.mp4" playsinline webkit-playsinline loop muted></video>
       </div>
     </div>
@@ -282,7 +284,7 @@
     <div class="status-bar">
       <span id="statusText">Point camera at target image to play video.</span>
       <div class="btn-group-right">
-        <button class="sound-btn ghost" onclick="toggleStagePreview()">🎬 Fit View</button>
+        <button class="sound-btn ghost" onclick="toggleStagePreview()">🎬 Full Video</button>
         <button id="soundBtn" class="sound-btn" onclick="toggleSoundOrPlay()">🔊 Unmute / Play</button>
       </div>
     </div>
@@ -297,9 +299,14 @@
     let activeVideoEl = document.getElementById('arVideo0');
     let isTargetDetected = false;
 
+    stageVideo.addEventListener('loadedmetadata', () => {
+      statusText.innerText = `Video ready (${stageVideo.videoWidth}x${stageVideo.videoHeight}).`;
+    });
+
     function showVideoStage(srcUrl) {
-      if (srcUrl && stageVideo.src !== srcUrl) {
-        stageVideo.src = srcUrl;
+      if (srcUrl && stageVideo.getAttribute('src') !== srcUrl) {
+        stageVideo.setAttribute('src', srcUrl);
+        stageVideo.load();
       }
       stageVideo.muted = activeVideoEl ? activeVideoEl.muted : true;
       videoStage.classList.add('show');
@@ -318,7 +325,7 @@
       } else {
         const currentSrc = (activeVideoEl && (activeVideoEl.currentSrc || activeVideoEl.src)) || './assets/jingpeng1.mp4';
         showVideoStage(currentSrc);
-        statusText.innerText = 'Showing full video (no crop).';
+        statusText.innerText = `Full video (${stageVideo.videoWidth || 0}x${stageVideo.videoHeight || 0}).`;
       }
     }
 
@@ -404,8 +411,8 @@
             const plane = document.createElement('a-video');
             plane.id = planeId;
             plane.setAttribute('src', `#${vidId}`);
-            plane.setAttribute('width', '0.9');
-            plane.setAttribute('height', '0.506');
+            plane.setAttribute('width', '0.8');
+            plane.setAttribute('height', '0.45');
             plane.setAttribute('position', '0 0 0.01');
             plane.setAttribute('material', 'side: double;');
             plane.setAttribute('visible', 'false');
@@ -530,4 +537,11 @@
 
     function stopQrScan() {
       if (qrLoopId) cancelAnimationFrame(qrLoopId);
-      if (qr
+      if (qrStream) {
+        qrStream.getTracks().forEach(t => t.stop());
+        qrStream = null;
+      }
+    }
+  </script>
+</body>
+</html>
