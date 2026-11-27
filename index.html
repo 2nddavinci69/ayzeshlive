@@ -105,21 +105,37 @@
       border: 1px solid #263147;
       overflow: hidden;
     }
-    .ar-box a-scene,
+    .ar-box a-scene {
+      position: relative !important;
+      width: 100% !important;
+      height: 100% !important;
+      display: block !important;
+      z-index: 2 !important;
+    }
+    .ar-box > video {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      z-index: 1 !important;
+    }
     .ar-box canvas.a-canvas {
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
       width: 100% !important;
       height: 100% !important;
-      transform: none !important;
+      z-index: 2 !important;
+      background: transparent !important;
     }
     .video-stage {
       display: none;
       position: absolute;
       inset: 0;
       background: #000000;
-      z-index: 30;
+      z-index: 20;
       align-items: center;
       justify-content: center;
       padding: 12px;
@@ -133,14 +149,13 @@
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
-      transform: none !important;
       border-radius: 6px;
     }
     .cam-back-btn {
       position: absolute;
       top: 12px;
       right: 12px;
-      z-index: 35;
+      z-index: 25;
       background: #ff6b00;
       color: #000000;
       border: none;
@@ -234,7 +249,7 @@
         id="arScene"
         mindar-image="imageTargetSrc: ./assets/targets1.mind; autoStart: true; uiScanning: yes; uiLoading: yes;"
         color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights, antialias: true"
+        renderer="colorManagement: true, physicallyCorrectLights, antialias: true, alpha: true"
         vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false"
       >
@@ -242,12 +257,9 @@
           <video
             id="arVideo0"
             src="./assets/jingpeng1.mp4"
-            preload="auto"
-            loop="true"
-            crossorigin="anonymous"
-            playsinline
-            webkit-playsinline
+            preload="none"
             muted
+            playsinline
           ></video>
         </a-assets>
 
@@ -274,7 +286,7 @@
     </div>
 
     <div class="status-bar">
-      <span id="statusText">Point camera at target image to play video.</span>
+      <span id="statusText">Starting camera... point at target image.</span>
       <div class="btn-group-right">
         <button id="muteBtn" class="action-btn ghost" onclick="toggleMute()">🔇 Unmute</button>
         <button id="playBtn" class="action-btn" onclick="togglePlay()">▶ Play</button>
@@ -287,13 +299,13 @@
     const muteBtn = document.getElementById('muteBtn');
     const playBtn = document.getElementById('playBtn');
     const arContainer = document.getElementById('arContainer');
+    const arScene = document.getElementById('arScene');
     const videoStage = document.getElementById('videoStage');
     const stageVideo = document.getElementById('stageVideo');
 
     let currentVideoUrl = './assets/jingpeng1.mp4';
     let isTargetDetected = false;
 
-    // Background A-Frame video ko hamesha muted aur paused rakhein taake kabhi double audio na aaye
     function silenceBackgroundArVideos() {
       document.querySelectorAll('#arAssets video').forEach((v) => {
         v.muted = true;
@@ -305,6 +317,36 @@
       muteBtn.innerText = stageVideo.muted ? '🔇 Unmute' : '🔊 Mute';
       playBtn.innerText = stageVideo.paused ? '▶ Play' : '⏸ Pause';
     }
+
+    // MindAR ke inject kiye hue camera <video> element ko ar-box ke andar align karein
+    function syncMindArCameraVideo() {
+      document.querySelectorAll('video').forEach((vid) => {
+        if (vid.id !== 'stageVideo' && vid.id !== 'qrVideo' && !vid.closest('#arAssets')) {
+          if (vid.parentElement !== arContainer) {
+            arContainer.insertBefore(vid, videoStage);
+          }
+          vid.style.position = 'absolute';
+          vid.style.top = '0';
+          vid.style.left = '0';
+          vid.style.width = '100%';
+          vid.style.height = '100%';
+          vid.style.objectFit = 'cover';
+          vid.style.zIndex = '1';
+          vid.style.display = 'block';
+        }
+      });
+    }
+
+    arScene.addEventListener('arReady', () => {
+      syncMindArCameraVideo();
+      statusText.innerText = 'Camera ready — point at JINPENG target image.';
+    });
+
+    arScene.addEventListener('arError', () => {
+      statusText.innerText = 'Camera/AR error — check browser camera permission.';
+    });
+
+    setInterval(syncMindArCameraVideo, 1000);
 
     stageVideo.addEventListener('loadedmetadata', () => {
       statusText.innerText = `Ready (${stageVideo.videoWidth}x${stageVideo.videoHeight}).`;
@@ -329,6 +371,7 @@
       stageVideo.pause();
       silenceBackgroundArVideos();
       videoStage.classList.remove('show');
+      syncMindArCameraVideo();
       statusText.innerText = 'Camera active — point at target image.';
       syncButtons();
     }
@@ -392,7 +435,7 @@
         const cfg = await res.json();
 
         if (cfg.mindFile) {
-          document.getElementById('arScene').setAttribute(
+          arScene.setAttribute(
             'mindar-image',
             `imageTargetSrc: ${cfg.mindFile}; autoStart: true; uiScanning: yes; uiLoading: yes;`
           );
@@ -476,6 +519,7 @@
         arContainer.style.display = 'block';
         modeArBtn.classList.add('active');
         modeQrBtn.classList.remove('active');
+        syncMindArCameraVideo();
         if (isTargetDetected) {
           showFullVideo(currentVideoUrl);
         }
