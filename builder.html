@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AYZESHLIVE — AR &amp; QR Builder</title>
+  <title>AYZESHLIVE — AR &amp; .mind Builder</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,6 +16,7 @@
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
+    /* Locked Top Bar matching Main Scanner */
     .topbar {
       position: fixed;
       top: 0;
@@ -84,24 +85,25 @@
     }
     .nav-link:hover { background: #fb923c; }
 
+    /* Non-Scrolling Compact Workspace */
     .stage {
       position: fixed;
       top: 62px;
       left: 0;
       right: 0;
       bottom: 0;
-      padding: 14px 16px;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
     .panel {
       width: 100%;
-      max-width: 780px;
+      max-width: 820px;
       background: #0b111e;
       border: 1px solid #1e293b;
       border-radius: 14px;
-      padding: 16px;
+      padding: 14px 16px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
@@ -110,21 +112,25 @@
     .col {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .box-card {
       background: #06090f;
       border: 1px solid #1e293b;
       border-radius: 10px;
-      padding: 12px;
+      padding: 11px 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      height: 100%;
+      gap: 7px;
+    }
+    .box-head {
+      display: flex;
+      align-items: center;
       justify-content: space-between;
+      gap: 8px;
     }
     .label {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-weight: 700;
       color: #e2e8f0;
     }
@@ -132,21 +138,21 @@
       color: #fb923c;
       font-family: ui-monospace, monospace;
     }
-    .helper-link {
-      display: inline-block;
-      color: #fb923c;
-      font-size: 0.76rem;
-      font-weight: 600;
+    .mini-link {
+      font-size: 0.7rem;
+      color: #94a3b8;
       text-decoration: underline;
     }
+    .mini-link:hover { color: #fb923c; }
+
     input[type="file"], input[type="url"] {
       width: 100%;
       background: #0b111e;
       border: 1px solid #263349;
       border-radius: 8px;
-      padding: 8px 10px;
+      padding: 7px 9px;
       color: #f8fafc;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
     }
     input[type="file"]::file-selector-button {
       background: #1e293b;
@@ -155,22 +161,39 @@
       border-radius: 6px;
       padding: 4px 8px;
       margin-right: 8px;
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       font-weight: 600;
       cursor: pointer;
     }
+
+    .progress-track {
+      width: 100%;
+      height: 6px;
+      background: #0b111e;
+      border: 1px solid #1e293b;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: #f97316;
+      transition: width 0.15s ease;
+    }
+
     .btn-orange {
       width: 100%;
-      padding: 11px 12px;
+      padding: 10px 12px;
       border: none;
       border-radius: 8px;
       background: #f97316;
       color: #ffffff;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 800;
       cursor: pointer;
     }
     .btn-orange:hover { background: #fb923c; }
+    .btn-orange:disabled { opacity: 0.55; cursor: not-allowed; }
 
     .btn-dark {
       padding: 7px 11px;
@@ -178,7 +201,7 @@
       border: 1px solid #334155;
       background: #111827;
       color: #f8fafc;
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       font-weight: 700;
       cursor: pointer;
     }
@@ -186,6 +209,7 @@
       border-color: #f97316;
       color: #fb923c;
     }
+
     .qr-row {
       display: flex;
       align-items: center;
@@ -208,21 +232,22 @@
       justify-content: center;
       flex-shrink: 0;
     }
+
     .full-span {
       grid-column: 1 / -1;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding-top: 10px;
+      padding-top: 8px;
       border-top: 1px solid #1e293b;
-      font-size: 0.74rem;
+      font-size: 0.73rem;
       color: #94a3b8;
     }
     .status-txt { color: #fb923c; font-weight: 600; }
     .owner-txt strong { color: #f97316; }
 
-    @media (max-width: 720px) {
+    @media (max-width: 740px) {
       html, body { overflow: auto; }
       .stage { position: static; height: auto; min-height: calc(100vh - 62px); margin-top: 62px; }
       .panel { grid-template-columns: 1fr; }
@@ -248,32 +273,35 @@
 
   <main class="stage">
     <section class="panel">
+      <!-- Left Column: 1) Built-in MindAR Compiler + 2) AR Player Generator -->
       <div class="col">
         <div class="box-card">
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <label class="label" for="mindInput">Upload <code>.mind</code> tracking file:</label>
-            <input id="mindInput" type="file" accept=".mind" />
-            <a
-              class="helper-link"
-              href="https://hiukim.github.io/mind-ar-js-doc/tools/compile"
-              target="_blank"
-              rel="noopener noreferrer"
-            >Need a .mind file? Open MindAR Image Compiler →</a>
+          <div class="box-head">
+            <label class="label" for="imgTargetInput">1. MindAR Compiler (<code>.png/.jpg → .mind</code>):</label>
+            <a class="mini-link" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile" target="_blank" rel="noopener noreferrer">Official Tool</a>
           </div>
+          <input id="imgTargetInput" type="file" accept="image/png,image/jpeg,image/webp" multiple />
+          <div class="progress-track"><div id="compileBar" class="progress-fill"></div></div>
+          <button id="compileMindBtn" class="btn-orange" type="button">Compile &amp; Download targets.mind</button>
+        </div>
 
-          <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
-            <label class="label" for="videoInput">Upload client video (<code>.mp4</code>):</label>
-            <input id="videoInput" type="file" accept="video/mp4,.mp4" />
-          </div>
-
-          <button id="genPlayerBtn" class="btn-orange" type="button" style="margin-top:8px;">Generate AR Player File</button>
+        <div class="box-card">
+          <label class="label" for="mindInput">2. Upload <code>.mind</code> tracking file:</label>
+          <input id="mindInput" type="file" accept=".mind" />
+          <label class="label" for="videoInput">Upload client video (<code>.mp4</code>):</label>
+          <input id="videoInput" type="file" accept="video/mp4,.mp4" />
+          <button id="genPlayerBtn" class="btn-orange" type="button">Generate AR Player File</button>
         </div>
       </div>
 
+      <!-- Right Column: 3) Live AR Link & QR Code Generator -->
       <div class="col">
-        <div class="box-card">
-          <label class="label" for="qrLinkInput">Live AR Link for QR Code:</label>
-          <input id="qrLinkInput" type="url" value="https://2nddavinci69.github.io/ayzeshlive/" />
+        <div class="box-card" style="height: 100%; justify-content: space-between;">
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <label class="label" for="qrLinkInput">3. Live AR Link for QR Code:</label>
+            <input id="qrLinkInput" type="url" value="https://2nddavinci69.github.io/ayzeshlive/" />
+          </div>
+
           <div class="qr-row">
             <div>
               <div class="label" style="font-size:0.76rem; color:#94a3b8;">Scan &amp; Print Ready QR</div>
@@ -287,6 +315,7 @@
         </div>
       </div>
 
+      <!-- Footer -->
       <div class="full-span">
         <div id="statusMsg" class="status-txt">Ready — AYZESHLIVE AR Suite</div>
         <div class="owner-txt">
@@ -296,7 +325,12 @@
     </section>
   </main>
 
-  <script>
+  <script type="module">
+    import { Compiler } from "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js";
+
+    const imgTargetInput = document.getElementById("imgTargetInput");
+    const compileMindBtn = document.getElementById("compileMindBtn");
+    const compileBar = document.getElementById("compileBar");
     const mindInput = document.getElementById("mindInput");
     const videoInput = document.getElementById("videoInput");
     const genPlayerBtn = document.getElementById("genPlayerBtn");
@@ -305,6 +339,61 @@
     const dlQrBtn = document.getElementById("dlQrBtn");
     const qrBox = document.getElementById("qrBox");
     const statusMsg = document.getElementById("statusMsg");
+
+    function loadImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error("Invalid image file"));
+          img.src = reader.result;
+        };
+        reader.onerror = () => reject(new Error("Could not read file"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    compileMindBtn.addEventListener("click", async () => {
+      const files = Array.from(imgTargetInput.files || []);
+      if (!files.length) {
+        statusMsg.textContent = "Select at least one clear target image (.png / .jpg) first.";
+        return;
+      }
+
+      compileMindBtn.disabled = true;
+      compileBar.style.width = "5%";
+      statusMsg.textContent = "Loading target image(s)...";
+
+      try {
+        const images = await Promise.all(files.map(loadImage));
+        const compiler = new Compiler();
+
+        await compiler.compileImageTargets(images, (progress) => {
+          const pct = Math.max(5, Math.min(100, Math.round(progress)));
+          compileBar.style.width = pct + "%";
+          statusMsg.textContent = `Compiling targets.mind: ${pct}%`;
+        });
+
+        const exportedBuffer = await compiler.exportData();
+        const blob = new Blob([exportedBuffer], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "targets.mind";
+        a.click();
+        URL.revokeObjectURL(url);
+
+        compileBar.style.width = "100%";
+        statusMsg.textContent = "Success! targets.mind compiled & downloaded.";
+      } catch (err) {
+        compileBar.style.width = "0%";
+        statusMsg.textContent = `Compiler error: ${err.message || "Try a clearer high-contrast image."}`;
+        console.error(err);
+      } finally {
+        compileMindBtn.disabled = false;
+      }
+    });
 
     genPlayerBtn.addEventListener("click", () => {
       const mindFile = mindInput.files[0];
