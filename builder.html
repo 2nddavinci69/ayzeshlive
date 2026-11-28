@@ -2,473 +2,418 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AYZESHLIVE Builder — Multi-Target & QR Studio</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AYZESHLIVE — AR Player & QR Builder</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #0b0f19;
-      color: #ffffff;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b1120;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
-    .header {
-      position: sticky;
+
+    /* Locked Top Bar */
+    .topbar {
+      position: fixed;
       top: 0;
-      background: #000000;
-      border-bottom: 2px solid #ff6b00;
-      padding: 14px 20px;
+      left: 0;
+      right: 0;
+      height: 58px;
+      padding: 0 20px;
+      background: #0f172a;
+      border-bottom: 1px solid #1e293b;
       display: flex;
+      align-items: center;
       justify-content: space-between;
+      z-index: 50;
+    }
+    .brand-wrap {
+      display: flex;
       align-items: center;
       gap: 10px;
-      z-index: 100;
     }
-    .logo-text {
-      font-size: 20px;
+    .brand-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #0b1120;
       font-weight: 900;
-      color: #ff6b00;
-      letter-spacing: 1.5px;
-    }
-    .header-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-    .back-link {
-      color: #000;
-      background: #ff6b00;
-      padding: 8px 14px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 800;
-      font-size: 13px;
-      border: none;
-      cursor: pointer;
-    }
-    .lock-btn {
-      background: #1f2937;
-      color: #ffffff;
-      border: 1px solid #ff6b00;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 12px;
-      cursor: pointer;
-    }
-    .container {
-      max-width: 860px;
-      margin: 24px auto;
-      padding: 0 16px 40px;
-    }
-    .card {
-      background: #141b2d;
-      border: 1px solid #263147;
-      border-radius: 14px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    h2 {
-      margin-top: 0;
-      color: #ff6b00;
-      font-size: 18px;
-    }
-    label {
-      display: block;
-      margin: 12px 0 6px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    input[type="text"], input[type="number"], input[type="file"] {
-      width: 100%;
-      padding: 10px;
-      border-radius: 8px;
-      border: 1px solid #374151;
-      background: #0b0f19;
-      color: #fff;
-    }
-    .row-2 {
+      font-size: 0.95rem;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      place-items: center;
+      letter-spacing: 0.03em;
+    }
+    .brand-name {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: #f8fafc;
+    }
+    .brand-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    /* Main Non-Scrolling Workspace */
+    .workspace {
+      position: fixed;
+      top: 58px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 470px;
+      background: #172033;
+      border: 1px solid #2b384e;
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
       gap: 12px;
     }
-    .preview-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-      margin-top: 16px;
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
-    .preview-box {
-      background: #0b0f19;
-      border: 1px solid #1f2937;
-      border-radius: 10px;
-      padding: 12px;
-      text-align: center;
-    }
-    .preview-box video {
-      max-width: 100%;
-      max-height: 210px;
-      border-radius: 8px;
-    }
-    .mind-badge {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 8px 12px;
-      border-radius: 8px;
-      background: #111827;
-      border: 1px solid #ff6b00;
-      color: #ff6b00;
-      font-size: 13px;
+    .field-label {
+      font-size: 0.88rem;
       font-weight: 700;
+      color: #e2e8f0;
     }
-    .btn-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
+    .field-label code {
+      color: #f8fafc;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.84rem;
     }
-    button, .btn-link {
-      background: linear-gradient(135deg, #ff6b00, #e65100);
-      color: #000000;
-      font-weight: 800;
+
+    .file-box, .url-box {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: #cbd5e1;
+      font-size: 0.84rem;
+    }
+    .file-box::file-selector-button {
+      background: #e2e8f0;
+      color: #0f172a;
       border: none;
-      padding: 12px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-    }
-    button.secondary, .btn-link.secondary {
-      background: #1f2937;
-      color: #ffffff;
-      border: 1px solid #ff6b00;
-    }
-    .target-list {
-      margin-top: 12px;
-      display: grid;
-      gap: 10px;
-    }
-    .target-item {
-      background: #0b0f19;
-      border: 1px solid #263147;
-      border-radius: 10px;
-      padding: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
-    }
-    .del-btn {
-      background: #7f1d1d;
-      color: #fff;
-      padding: 6px 10px;
       border-radius: 6px;
-      font-size: 12px;
+      padding: 5px 10px;
+      margin-right: 10px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
     }
-    .log-box {
-      margin-top: 14px;
-      background: #0b0f19;
-      border-left: 3px solid #ff6b00;
+    .url-box {
+      padding: 9px 12px;
+      outline: none;
+      color: #f8fafc;
+    }
+    .url-box:focus {
+      border-color: #f59e0b;
+    }
+
+    .btn-primary {
+      width: 100%;
       padding: 12px;
-      font-size: 13px;
-      color: #d1d5db;
-      white-space: pre-wrap;
+      border: none;
+      border-radius: 10px;
+      background: #f59e0b;
+      color: #0b1120;
+      font-size: 0.98rem;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.28);
+      transition: transform 0.12s ease, background 0.15s ease;
     }
-    #qrBox {
-      margin-top: 16px;
+    .btn-primary:hover { background: #fbbf24; }
+    .btn-primary:active { transform: scale(0.99); }
+
+    /* QR Section */
+    .qr-panel {
       display: flex;
-      justify-content: center;
-      background: #ffffff;
-      padding: 14px;
-      border-radius: 12px;
-      width: fit-content;
-      margin-left: auto;
-      margin-right: auto;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 10px 12px;
     }
-    /* PIN Lock Screen */
-    #pinGate {
-      position: fixed;
-      inset: 0;
-      background: #0b0f19;
-      z-index: 99999;
+    .qr-controls {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .qr-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-sm {
+      padding: 6px 10px;
+      border-radius: 7px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f8fafc;
+      font-size: 0.76rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-sm.accent {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
+    .qr-preview {
+      width: 78px;
+      height: 78px;
+      background: #ffffff;
+      border-radius: 8px;
+      padding: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 16px;
+      flex-shrink: 0;
     }
-    .pin-card {
-      width: 100%;
-      max-width: 360px;
-      background: #141b2d;
-      border: 2px solid #ff6b00;
-      border-radius: 14px;
-      padding: 24px;
-      text-align: center;
-    }
-    .pin-input {
-      width: 100%;
-      padding: 12px;
-      margin: 14px 0 10px;
-      border-radius: 8px;
-      border: 1px solid #ff6b00;
-      background: #0b0f19;
-      color: #ffffff;
-      font-size: 20px;
-      letter-spacing: 6px;
-      text-align: center;
-      font-weight: 800;
-    }
-    .pin-error {
-      color: #f87171;
-      font-size: 12px;
-      margin: 10px 0 0;
+
+    .status-line {
+      font-size: 0.76rem;
+      color: #38bdf8;
       min-height: 16px;
+      text-align: center;
     }
-    .pin-back {
-      display: inline-block;
-      margin-top: 12px;
-      color: #9ca3af;
-      font-size: 12px;
-      text-decoration: none;
+
+    .card-footer {
+      border-top: 1px solid #2b384e;
+      padding-top: 10px;
+      text-align: center;
+      font-size: 0.74rem;
+      line-height: 1.45;
+      color: #94a3b8;
+    }
+    .card-footer strong {
+      color: #f59e0b;
+      font-weight: 700;
     }
   </style>
 </head>
 <body>
-
-  <div id="pinGate">
-    <div class="pin-card">
-      <div class="logo-text">AYZESHLIVE ADMIN</div>
-      <div style="font-size:12px; color:#9ca3af; margin-top:4px;">Enter PIN to access Builder</div>
-      <input
-        type="password"
-        id="pinInput"
-        class="pin-input"
-        inputmode="numeric"
-        maxlength="8"
-        placeholder="••••"
-        onkeydown="if(event.key==='Enter') checkBuilderPin()"
-      />
-      <button style="width:100%; justify-content:center;" onclick="checkBuilderPin()">🔓 Unlock Builder</button>
-      <p id="pinError" class="pin-error"></p>
-      <a href="./index.html" class="pin-back">← Back to Scanner</a>
+  <header class="topbar">
+    <div class="brand-wrap">
+      <div class="brand-badge">AL</div>
+      <div class="brand-name">AYZESHLIVE</div>
     </div>
-  </div>
-
-  <header class="header">
-    <div class="logo-text">AYZESHLIVE BUILDER</div>
-    <div class="header-actions">
-      <button class="lock-btn" onclick="lockBuilder()">🔒 Lock</button>
-      <a href="./index.html" class="back-link">📷 Open Scanner</a>
-    </div>
+    <div class="brand-tag">AR BUILDER &amp; QR</div>
   </header>
 
-  <div class="container">
-    <div class="card">
-      <h2>1. .mind Target + MP4 Video Entry Jorain</h2>
-
-      <div class="row-2">
-        <div>
-          <label>Target Index (0, 1, 2...)</label>
-          <input type="number" id="targetIndex" min="0" value="0" />
-        </div>
-        <div>
-          <label>Target / Label Name</label>
-          <input type="text" id="projectName" value="JINPENG-01" />
-        </div>
+  <main class="workspace">
+    <section class="card">
+      <div class="field-group">
+        <label class="field-label" for="mindInput">Upload <code>.mind</code> tracking file:</label>
+        <input id="mindInput" class="file-box" type="file" accept=".mind" />
       </div>
 
-      <label>Upload Target File (.mind)</label>
-      <input type="file" id="mindInput" accept=".mind" onchange="handleMindChange(event)" />
-
-      <label>Select Local Video File (MP4 — for instant preview & local test)</label>
-      <input type="file" id="videoInput" accept="video/mp4,video/*" onchange="handleVideoChange(event)" />
-
-      <label>Hosted MP4 Video URL (Required for live scan on GitHub Pages)</label>
-      <input type="text" id="hostedVideoUrl" placeholder="https://2nddavinci69.github.io/ayzeshlive/assets/demo.mp4" />
-
-      <div class="preview-grid">
-        <div class="preview-box">
-          <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">Target .mind File Status</div>
-          <p id="mindPlaceholder" style="color:#6b7280; font-size:13px;">No .mind file selected</p>
-          <div id="mindInfo" class="mind-badge" style="display:none;"></div>
-        </div>
-        <div class="preview-box">
-          <div style="font-size:12px; color:#9ca3af; margin-bottom:8px;">MP4 Video Preview</div>
-          <video id="vidPreview" controls style="display:none;"></video>
-          <p id="vidPlaceholder" style="color:#6b7280; font-size:13px;">No video selected</p>
-        </div>
+      <div class="field-group">
+        <label class="field-label" for="videoInput">Upload client video (<code>.mp4</code>):</label>
+        <input id="videoInput" class="file-box" type="file" accept="video/mp4,.mp4" />
       </div>
 
-      <div class="btn-row">
-        <button onclick="addTargetToList()">➕ Add Target to List</button>
-        <button class="secondary" onclick="downloadTargetsJson()">💾 Download targets.json</button>
-        <button class="secondary" onclick="generateQR()">🔳 Generate Direct QR Code</button>
-        <a class="btn-link secondary" href="https://hiukim.github.io/mind-ar-js-doc/tools/compile/" target="_blank" rel="noopener">🛠️ Official MindAR Compiler</a>
+      <button id="generateBtn" class="btn-primary" type="button">Generate AR Player File</button>
+
+      <div class="qr-panel">
+        <div class="qr-controls">
+          <label class="field-label" for="liveUrlInput" style="font-size:0.8rem;">Live AR Link for QR Code:</label>
+          <input
+            id="liveUrlInput"
+            class="url-box"
+            type="url"
+            value="https://ayzeshlive.com/"
+            placeholder="https://ayzeshlive.com/client-ar/"
+          />
+          <div class="qr-actions">
+            <button id="qrGenBtn" class="btn-sm accent" type="button">Generate QR</button>
+            <button id="qrDownloadBtn" class="btn-sm" type="button">Download QR</button>
+          </div>
+        </div>
+        <div id="qrBox" class="qr-preview" title="AYZESHLIVE QR Code"></div>
       </div>
 
-      <div class="log-box" id="logBox">Ready. Upload a .mind target file and an MP4 video to begin.</div>
-    </div>
+      <div id="statusMsg" class="status-line"></div>
 
-    <div class="card">
-      <h2>2. Saved Targets List (For targets.json)</h2>
-      <p style="font-size:13px; color:#9ca3af; margin-top:0;">Upload downloaded <code>targets.json</code> to repository root and your <code>.mind</code> file to <code>./assets/</code>.</p>
-      <div id="targetList" class="target-list"></div>
-    </div>
-
-    <div class="card" style="text-align:center;">
-      <h2>3. Direct QR Code</h2>
-      <p style="font-size:13px; color:#9ca3af;">Scan this QR code to open the selected target video directly.</p>
-      <div id="qrBox"></div>
-      <p id="shareUrlText" style="font-size:12px; color:#ff6b00; word-break:break-all; margin-top:12px;"></p>
-    </div>
-  </div>
+      <footer class="card-footer">
+        <div>Founder / Owner: <strong>Mushtaque Ahmed Rajput</strong> | Contact: <strong>0321-2100966</strong></div>
+        <div>&copy; 2026 AYZESHLIVE. All Rights Reserved.</div>
+      </footer>
+    </section>
+  </main>
 
   <script>
-    const BUILDER_PIN = "1969"; // Apna pasandeeda PIN yahan set karein
+    const mindInput = document.getElementById("mindInput");
+    const videoInput = document.getElementById("videoInput");
+    const generateBtn = document.getElementById("generateBtn");
+    const liveUrlInput = document.getElementById("liveUrlInput");
+    const qrGenBtn = document.getElementById("qrGenBtn");
+    const qrDownloadBtn = document.getElementById("qrDownloadBtn");
+    const qrBox = document.getElementById("qrBox");
+    const statusMsg = document.getElementById("statusMsg");
 
-    function applyLockState() {
-      const unlocked = sessionStorage.getItem("ayzesh_builder_unlocked") === "1";
-      document.getElementById("pinGate").style.display = unlocked ? "none" : "flex";
+    function renderQR() {
+      const link = (liveUrlInput.value || "").trim() || "https://ayzeshlive.com/";
+      qrBox.innerHTML = "";
+      new QRCode(qrBox, {
+        text: link,
+        width: 70,
+        height: 70,
+        colorDark: "#0b1120",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
     }
 
-    function checkBuilderPin() {
-      const inputEl = document.getElementById("pinInput");
-      const errEl = document.getElementById("pinError");
-      if (inputEl.value.trim() === BUILDER_PIN) {
-        sessionStorage.setItem("ayzesh_builder_unlocked", "1");
-        errEl.innerText = "";
-        inputEl.value = "";
-        applyLockState();
-      } else {
-        errEl.innerText = "Wrong PIN! Access denied.";
-        inputEl.value = "";
-      }
-    }
+    qrGenBtn.addEventListener("click", () => {
+      renderQR();
+      statusMsg.textContent = "QR Code updated for AYZESHLIVE link.";
+    });
 
-    function lockBuilder() {
-      sessionStorage.removeItem("ayzesh_builder_unlocked");
-      applyLockState();
-    }
+    qrDownloadBtn.addEventListener("click", () => {
+      const canvas = qrBox.querySelector("canvas");
+      const img = qrBox.querySelector("img");
+      const dataUrl = canvas ? canvas.toDataURL("image/png") : (img ? img.src : "");
+      if (!dataUrl) return;
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "AYZESHLIVE-QR.png";
+      a.click();
+      statusMsg.textContent = "AYZESHLIVE-QR.png downloaded.";
+    });
 
-    applyLockState();
+    generateBtn.addEventListener("click", () => {
+      const mindFile = mindInput.files[0];
+      const videoFile = videoInput.files[0];
 
-    let mindFileName = 'targets.mind';
-    let mindFilePath = './assets/targets.mind';
-    let videoFileName = 'demo.mp4';
-    let targets = JSON.parse(localStorage.getItem('ayzeshlive_targets_v1') || '[]');
-
-    const logBox = document.getElementById('logBox');
-    function log(msg) { logBox.innerText = msg; }
-
-    function handleMindChange(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      mindFileName = file.name;
-      mindFilePath = `./assets/${file.name}`;
-      const sizeKb = (file.size / 1024).toFixed(1);
-      document.getElementById('mindPlaceholder').style.display = 'none';
-      const badge = document.getElementById('mindInfo');
-      badge.style.display = 'inline-block';
-      badge.innerText = `${file.name} (${sizeKb} KB)`;
-      log(`Loaded target file: ${file.name}. Upload it to ${mindFilePath} on GitHub.`);
-    }
-
-    function handleVideoChange(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      videoFileName = file.name;
-      const url = URL.createObjectURL(file);
-      const vid = document.getElementById('vidPreview');
-      vid.src = url;
-      vid.style.display = 'inline-block';
-      document.getElementById('vidPlaceholder').style.display = 'none';
-      log(`Video loaded: ${file.name}`);
-    }
-
-    function saveAndRenderTargets() {
-      localStorage.setItem('ayzeshlive_targets_v1', JSON.stringify(targets));
-      const wrap = document.getElementById('targetList');
-      if (!targets.length) {
-        wrap.innerHTML = '<p style="color:#6b7280; font-size:13px;">No targets added yet.</p>';
+      if (!mindFile || !videoFile) {
+        statusMsg.textContent = "Please select both .mind and .mp4 files first.";
         return;
       }
-      wrap.innerHTML = targets
-        .sort((a, b) => a.targetIndex - b.targetIndex)
-        .map((t, idx) => `
-          <div class="target-item">
-            <div>
-              <strong style="color:#ff6b00;">#${t.targetIndex} — ${t.name}</strong><br/>
-              <span style="color:#9ca3af;">${t.videoUrl}</span>
-            </div>
-            <button class="del-btn" onclick="removeTarget(${idx})">Remove</button>
-          </div>
-        `).join('');
+
+      const mindFileName = mindFile.name;
+      const videoFileName = videoFile.name;
+
+      const playerHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AYZESHLIVE — Live AR</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"><\/script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"><\/script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1120; font-family: system-ui, sans-serif; color: #fff; }
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 56px; padding: 0 16px;
+      background: rgba(15, 23, 42, 0.92); border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between; z-index: 30;
     }
-
-    function removeTarget(idx) {
-      targets.splice(idx, 1);
-      saveAndRenderTargets();
+    .brand { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.08em; color: #f59e0b; }
+    .status { font-size: 0.75rem; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.1); }
+    .ar-wrap { position: fixed; top: 56px; left: 0; right: 0; bottom: 0; }
+    .sound-btn {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 30;
+      display: none; padding: 10px 18px; border: none; border-radius: 999px;
+      background: #f59e0b; color: #0b1120; font-weight: 800; font-size: 0.86rem; cursor: pointer;
     }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">AYZESHLIVE</div>
+    <div id="statusBadge" class="status">Starting camera...</div>
+  </header>
+  <main class="ar-wrap">
+    <a-scene
+      id="scene"
+      mindar-image="imageTargetSrc: ./assets/${mindFileName}; autoStart: true; uiLoading: no; uiScanning: no; uiError: no;"
+      color-space="sRGB"
+      renderer="colorManagement: true, physicallyCorrectLights"
+      vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+    >
+      <a-assets>
+        <video id="arVid" src="./assets/${videoFileName}" preload="auto" loop="true" muted playsinline webkit-playsinline crossorigin="anonymous"></video>
+      </a-assets>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity id="target0" mindar-image-target="targetIndex: 0">
+        <a-video src="#arVid" position="0 0 0" width="1" height="0.5625"></a-video>
+      </a-entity>
+    </a-scene>
+  </main>
+  <button id="soundBtn" class="sound-btn" type="button">Tap for Sound</button>
+  <script>
+    const scene = document.getElementById("scene");
+    const arVid = document.getElementById("arVid");
+    const target0 = document.getElementById("target0");
+    const statusBadge = document.getElementById("statusBadge");
+    const soundBtn = document.getElementById("soundBtn");
 
-    function addTargetToList() {
-      const targetIndex = parseInt(document.getElementById('targetIndex').value, 10) || 0;
-      const name = document.getElementById('projectName').value.trim() || `TARGET-${targetIndex}`;
-      const videoUrl = document.getElementById('hostedVideoUrl').value.trim() || `./assets/${videoFileName}`;
+    scene.addEventListener("arReady", () => { statusBadge.textContent = "Scan target image"; });
+    scene.addEventListener("arError", () => { statusBadge.textContent = "Camera error"; });
+    target0.addEventListener("targetFound", () => {
+      statusBadge.textContent = "AYZESHLIVE Playing";
+      arVid.muted = true;
+      arVid.play().catch(() => {});
+      soundBtn.style.display = "block";
+    });
+    target0.addEventListener("targetLost", () => {
+      statusBadge.textContent = "Scan target image";
+      arVid.pause();
+      soundBtn.style.display = "none";
+    });
+    soundBtn.addEventListener("click", () => {
+      arVid.muted = !arVid.muted;
+      arVid.play().catch(() => {});
+      soundBtn.textContent = arVid.muted ? "Tap for Sound" : "Mute Sound";
+    });
+  <\/script>
+</body>
+</html>`;
 
-      const existingIdx = targets.findIndex(t => t.targetIndex === targetIndex);
-      const entry = { targetIndex, name, videoUrl, mindFile: mindFilePath };
-      if (existingIdx >= 0) {
-        targets[existingIdx] = entry;
-      } else {
-        targets.push(entry);
-      }
-      document.getElementById('targetIndex').value = targetIndex + 1;
-      saveAndRenderTargets();
-      log(`Saved Target #${targetIndex} (${name}) -> ${videoUrl} [${mindFilePath}]`);
-    }
+      const blob = new Blob([playerHtml], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "index.html";
+      link.click();
+      URL.revokeObjectURL(url);
 
-    function downloadTargetsJson() {
-      if (!targets.length) {
-        addTargetToList();
-      }
-      const payload = {
-        brand: 'AYZESHLIVE',
-        mindFile: mindFilePath,
-        targets
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'targets.json';
-      a.click();
-      log('Downloaded targets.json. Upload it to repository root.');
-    }
+      statusMsg.textContent = `Generated index.html for ${mindFileName} + ${videoFileName}!`;
+    });
 
-    function generateQR() {
-      const qrBox = document.getElementById('qrBox');
-      qrBox.innerHTML = '';
-      const baseUrl = window.location.href.replace(/builder\.html.*$/, 'index.html');
-      const targetIndex = parseInt(document.getElementById('targetIndex').value, 10) || 0;
-      const customVideo = document.getElementById('hostedVideoUrl').value.trim();
-
-      const u = new URL(baseUrl);
-      u.searchParams.set('target', String(targetIndex));
-      if (customVideo) u.searchParams.set('video', customVideo);
-
-      new QRCode(qrBox, {
-        text: u.toString(),
-        width: 190,
-        height: 190
-      });
-      document.getElementById('shareUrlText').innerText = u.toString();
-      log('QR Code generated for: ' + u.toString());
-    }
-
-    saveAndRenderTargets();
+    // Initial default QR render
+    renderQR();
   </script>
 </body>
 </html>
